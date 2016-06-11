@@ -21,9 +21,8 @@
 			"Default": "other-demo"
 		},
 		"bastionHostImageId": {
-			"Description": "AMI to be used for the Bastion Host",
-			"Type": "AWS::EC2::Image::Id",
-			"Default": "ami-c229c0a2"
+			"Description": "AMI to be used for the Bastion Host (use an ECS-optimized AMI like ami-84b44de4 to use this to manage Docker images)",
+			"Type": "AWS::EC2::Image::Id"
 		}
 	},
 	"Mappings": {

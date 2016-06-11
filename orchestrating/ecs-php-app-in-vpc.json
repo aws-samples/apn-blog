@@ -18,12 +18,10 @@
 	"Parameters": {
 		"KeyName": {
 			"Type": "AWS::EC2::KeyPair::KeyName",
-			"Description": "Name of an existing EC2 KeyPair to enable SSH access to the ECS instances",
-			"Default": "other-demo"
+			"Description": "Name of an existing EC2 KeyPair to enable SSH access to the ECS instances"
 		},
 		"VPCId": {
 			"Type": "AWS::EC2::VPC::Id",
-			"Default": "vpc-79fb2a1d",
 			"Description": "The VPC where the Containers will run (e.g., vpc-79fb2a1d)"
 		},
 		"SubnetID": {
@@ -53,12 +51,10 @@
 		},
 		"BastionIngressSecurityGroup": {
 			"Type": "AWS::EC2::SecurityGroup::Id",
-			"Default": "sg-72277215",
 			"Description": "The Security Group that will permit inbound SSH traffic from the Bastion Host (e.g., sg-72277215)"
 		},
 		"ECSContainerInstanceSG": {
 			"Type": "AWS::EC2::SecurityGroup::Id",
-			"Default": "sg-4b27722c",
 			"Description": "The Security Group that ECS Container Instances should be associated with (e.g., sg-4b27722c)"
 		},
 		"ECSContainerInstanceRoleName": {
@@ -80,28 +76,28 @@
 	"Mappings": {
 		"AWSRegionToAMI": {
 			"us-east-1": {
-				"AMIID": "ami-2b3b6041"
+				"AMIID": "ami-8f7687e2"
 			},
 			"us-west-2": {
-				"AMIID": "ami-ac6872cd"
+				"AMIID": "ami-84b44de4"
 			},
 			"eu-west-1": {
-				"AMIID": "ami-03238b70"
+				"AMIID": "ami-bb473cdb"
 			},
 			"ap-northeast-1": {
-				"AMIID": "ami-fb2f1295"
+				"AMIID": "ami-095dbf68"
 			},
 			"ap-southeast-2": {
-				"AMIID": "ami-43547120"
+				"AMIID": "ami-697a540a"
 			},
 			"us-west-1": {
 				"AMIID": "ami-bfe095df"
 			},
 			"ap-southeast-1": {
-				"AMIID": "ami-c78f43a4"
+				"AMIID": "ami-cf03d2ac"
 			},
 			"eu-central-1": {
-				"AMIID": "ami-e1e6f88d"
+				"AMIID": "ami-b0cc23df"
 			}
 		}
 	},

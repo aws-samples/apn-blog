@@ -70,12 +70,11 @@
 		"bastionHostKeyPair": {
 			"Description": "Amazon EC2 Key Pair to be used for the Bastion Host",
 			"Type": "AWS::EC2::KeyPair::KeyName",
-			"Default": "other-demo"
 		},
 		"bastionHostImageId": {
 			"Description": "AMI to be used for the Bastion Host",
 			"Type": "AWS::EC2::Image::Id",
-			"Default": "ami-df8767bf"
+			"Default": "ami-8db945ed"
 		}
 	},
 	"Mappings": {

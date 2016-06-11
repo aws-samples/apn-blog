@@ -49,7 +49,7 @@
 		"InstanceKeyPairName": {
 			"Description": "Amazon EC2 Key Pair Name to be used for the instances",
 			"Type": "AWS::EC2::KeyPair::KeyName",
-			"Default": "other-demo"
+			"Default": ""
 		},
 		"ApplicationName": {
 			"Type": "String",
@@ -78,27 +78,22 @@
 		},
 		"VPCId": {
 			"Type": "AWS::EC2::VPC::Id",
-			"Default": "vpc-b18d79d5",
 			"Description": "The VPC where the application will run (e.g., vpc-9f8b7efb)"
 		},
 		"PublicSubnet": {
 			"Type": "AWS::EC2::Subnet::Id",
-			"Default": "subnet-39e1f24e",
 			"Description": "The Subnet (Public) where the ELB will reside (e.g., subnet-813ec1e5)"
 		},
 		"PrivateSubnet": {
 			"Type": "AWS::EC2::Subnet::Id",
-			"Default": "subnet-2ae1f25d",
 			"Description": "The Subnet (Private) where the EC2 instances will reside (e.g., subnet-f58fa0ac)"
 		},
 		"DataVolumeSnapshot": {
 			"Type": "String",
-			"Default": "snap-00ec8f5a",
 			"Description": "The snapshot that will be used to mount an EBS Volume (D: drive) for each EC2 instance (e.g., snap-00ec8f5a)"
 		},
 		"BastionIngressSecurityGroup": {
 			"Type": "AWS::EC2::SecurityGroup::Id",
-			"Default": "sg-a1b134c6",
 			"Description": "The Security Group that will permit inbound RDP traffic from the Bastion Host (e.g., sg-818401e6)"
 		}
 	},
