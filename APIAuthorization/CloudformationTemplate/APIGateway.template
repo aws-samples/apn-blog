@@ -654,7 +654,7 @@
     "Outputs": {        
         "S3BucketSecureURL" : {
             "Value" : { "Fn::Join" : [
-                "", [ "http://", { "Fn::GetAtt" : [ "S3Bucket", "DomainName" ] } ]
+                "", [ { "Fn::GetAtt" : [ "S3Bucket", "WebsiteURL" ] } ]
             ] },
             "Description" : "Amazon S3 website endpoint"
         }

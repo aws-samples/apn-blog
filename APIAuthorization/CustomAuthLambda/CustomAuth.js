@@ -60,7 +60,7 @@ exports.handler = function (event, context) {
   var options = {
     method: 'POST',
     json: true,
-    url: 'https://auth0jwtdemo.auth0.com',
+    url: 'https://auth0jwtdemo.auth0.com/tokeninfo',
     headers: { 'content-type': 'application/json' },
     body: { 'id_token': access_token }
   };
