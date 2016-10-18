@@ -68,7 +68,7 @@ exports.handler = function (event, context) {
   request(options, function (error, response, body) {
     if (error) throw new Error(error);
     
-    console.log("body = " + body);
+    console.log("body = " + JSON.stringify(body));
     console.log("StatusCode = " + response.statusCode);
 
     // Signature MisMatch or Token expired 401/403. 
@@ -76,13 +76,14 @@ exports.handler = function (event, context) {
       context.succeed(generate_policy(apiOptions, body, 'Deny', event.methodArn));
       console.log("Deny IAM Policy Generated");
     }
-    else if (response.statusCode == 200)  // JWT is Valid. Implement additional custom Authorization rules.
+    else if (response.statusCode == 200)  // JWT is Valid. 
     {
-      var action = 'Allow';
-
-      if ((apiOptions.resource_path.trim() == 'device' && body.identities[0].provider.trim() == 'amazon') ||
-            (apiOptions.resource_path.trim() == 'movie' && body.identities[0].provider.trim() == 'google-oauth2')) {
-                action = 'Deny';
+      var action = 'Deny';
+		
+	  // Implement additional custom Authorization rules.
+      if ((apiOptions.resource_path.trim() == 'movie' && body.identities[0].provider.trim() == 'amazon') ||
+            (apiOptions.resource_path.trim() == 'device' && body.identities[0].provider.trim() == 'google-oauth2')) {
+                action = 'Allow';
       }
 
       console.log(action + " IAM Policy Generated");
@@ -95,3 +96,4 @@ exports.handler = function (event, context) {
   });
 
 };
+	
