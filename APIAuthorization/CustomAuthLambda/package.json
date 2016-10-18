@@ -1,0 +1,14 @@
+{
+  "name": "customauthorizer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "CustomAuth.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Aravind",
+  "license": "ISC",
+  "dependencies": {
+    "request": "^2.75.0"
+  }
+}

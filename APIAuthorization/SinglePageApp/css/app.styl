@@ -1,0 +1,372 @@
+color_blue = #14204d;
+color_blue_light = #3cc8f4;
+color_red = #eb5422;
+color_grey = #d1d2d4;
+
+body
+	-webkit-font-smoothing antialiased
+
+h1, h2, h3
+	font-family "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif
+	font-weight lighter
+
+
+body.home
+	background color_grey
+	
+a
+	&:hover
+		text-decoration none
+
+.btn
+	border 0
+	font-weight bold
+	text-transform uppercase
+	font-size 11px
+	letter-spacing 1px
+	line-height 22px
+	&.btn-success
+		background-color #94c231
+
+.login-page
+
+	.login-box
+		margin 5% auto
+		background: white;
+		width 320px
+		text-align center
+		padding 40px 10px
+		border-radius 3px
+		.welcome-badge
+			background #eea20a url("../img/logo.png") center no-repeat
+			background-size 70%
+			width 140px
+			height 140px
+			margin auto auto 30px auto
+			border-radius 5px
+			display block
+		.btn
+			&.btn-primary
+				font-weight bold
+				text-transform uppercase
+				font-size 12px
+				letter-spacing 1px
+				margin-top 20px
+				i
+					margin-right 10px
+
+	.get-auth0
+		color #fff
+		background color_blue
+		background: linear-gradient(45deg,  rgba(20,32,77,1) 0%,rgba(60,200,244,1) 100%); /* W3C */
+		position fixed
+		bottom 0
+		left 0
+		right 0
+		text-align center
+		padding 30px
+		min-width 700px
+		h3
+			font-weight 200
+			position relative
+			display inline-block
+			span
+				-webkit-animation get_auth0_text 2s
+				display inline-block
+			.btn
+				border-radius 3px
+				text-transform uppercase
+				padding 14px 20px
+				font-size: 12px;
+				letter-spacing 1px
+				background-color color_red
+				margin-left 20px
+				-webkit-animation get_auth0_btn 2s
+				&:hover
+					background-color darken(color_red, 40%)
+
+.container
+	max-width 800px
+
+.loading-global
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	opacity: .8;
+
+.files-page
+	header
+		&.site-header
+			margin-bottom 50px
+			h1
+				font-size 20px
+				a
+					color #000
+			.login-info
+				text-align right
+				margin-top 20px
+				font-size 12px
+				span
+					opacity 0.5
+				img
+					width 30px
+					margin-right 10px
+					border-radius 40px
+	.get-auth-left
+		background-color #4e7ac7
+		background: linear-gradient(45deg,  rgba(20,32,77,1) 0%,rgba(60,200,244,1) 100%); /* W3C */
+		color #fff
+		padding 20px 10px
+		text-align center
+		border-radius 3px
+		.icon-badge
+			background #fff;
+			display: block
+			width 60px
+			height 60px
+			border-radius 3px
+			margin auto
+			margin-bottom 10px
+		img
+			max-width: 40%
+			margin: auto;
+			margin-bottom: 10px;
+			// width 40px
+			// height auto
+			// margin-top 14px
+		h3
+			margin-top 0
+			font-weight 200
+			a 
+				color: white;
+				font-weight: bold
+		p
+			opacity 0.6
+		.btn
+			margin-top 10px
+			background-color: color_red
+			&:hover
+				background-color: darken(color_red, 30%)
+
+
+	.files-list
+		h3
+			margin-top 0
+			margin-bottom 30px
+			float left
+		.upload-button
+			float right
+			i
+				margin-right 6px
+
+			img 
+				position: relative
+				top: -3px;
+		a
+			font-weight bold
+		tbody
+			tr
+				&:hover
+					background #f9f9f9
+
+				a.glyphicon-link
+					color: black;
+					font-weight: normal
+					&:hover 
+						color: blue;
+				.glyphicon-trash:hover 
+					color: red;
+					cursor: pointer;
+
+footer
+	text-align center
+	a
+		color #333
+
+
+@-moz-keyframes get_auth0_text {
+  0% {
+    padding-right: 100px;
+  }
+
+  100% {
+    padding-right: 0;
+  }
+}
+@-webkit-keyframes get_auth0_text {
+  0% {
+    padding-right: 100px;
+  }
+
+  100% {
+    padding-right: 0;
+  }
+}
+@-o-keyframes get_auth0_text {
+  0% {
+    padding-right: 100px;
+  }
+
+  100% {
+    padding-right: 0;
+  }
+}
+@-ms-keyframes get_auth0_text {
+  0% {
+    padding-right: 100px;
+  }
+
+  100% {
+    padding-right: 0;
+  }
+}
+@keyframes get_auth0_text {
+  0% {
+    padding-right: 100px;
+  }
+
+  100% {
+    padding-right: 0;
+  }
+}
+@-moz-keyframes get_auth0_btn {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+@-webkit-keyframes get_auth0_btn {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+@-o-keyframes get_auth0_btn {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+@-ms-keyframes get_auth0_btn {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes get_auth0_btn {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+
+@-webkit-keyframes show {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+#drop-anywhere {
+  line-height: 500px;
+  text-align: center;
+  color: white;
+  display: none;
+}
+
+#drop-anywhere::before {
+  content: 'Drop to upload!';
+  font-size: 30px;
+  font-weight: bold
+  text-align: center;
+}
+
+#drop-anywhere.show {
+  -webkit-animation: show 300ms;
+}
+
+
+.left 
+	float: left
+
+.right 
+	float: right
+
+@media screen and (max-width: 700px)
+	body.home
+		background: #fff;
+
+
+	.login-page 
+		.login-box 
+			.welcome-badge
+				width: 100px;
+				height: 100px;
+			.btn.btn-primary
+				display: block
+				margin-top: 30px;
+
+		.get-auth0
+			min-width: 0;
+			padding: 10px;
+			position: static;
+
+
+		.get-auth0 h3 span
+			display: block
+			-webkit-animation: none;
+			font-size: 18px;
+			margin-bottom: 20px;
+
+		.get-auth0 h3 .btn 
+			margin: 0;	
+			-webkit-animation: none;
+
+	.get-auth-left
+		margin-bottom: 30px;
+
+	.left, .right
+		float: none;
+
+
+@media screen and (max-width: 400px)
+	.login-info
+		span 
+			display: none
+
+	.login-page
+		h1 
+			font-size: 20px;
+		h2 
+			font-size: 14px;
+		.login-box 
+			padding-top: 0;
+	table
+		thead, tbody
+			tr th:first-child, tr td:first-child
+				display: none 
+
+			td
+				font-size: 12px;
+
+
+	.get-auth-left
+		float: none;
