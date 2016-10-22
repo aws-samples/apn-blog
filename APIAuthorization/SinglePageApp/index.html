@@ -1,20 +1,22 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <title>Integrate Auth0 with Amazon API Gateway</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet">
-  <link href="css/app.css" rel="stylesheet">
-  <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+	<title>Integrate Auth0 with Amazon API Gateway</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet">
+	<link href="css/app.css" rel="stylesheet">
+	<script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
 </head>
 
 <h3><span id="login" class="nickname"></span></h3>
+
 <body class="home">
-  <div class="login-page clearfix">
-    <div class="login-box">
-      <div class="welcome-badge"></div>
-      <h2><b>Single Page App</h2>
+	<div class="login-page clearfix">
+		<div class="login-box">
+			<div class="welcome-badge"></div>
+			<h2><b>Single Page App</h2>
       <h5>Authorize API's using Auth0 and Amazon API Gateway</h5>      
     </div>
   </div>
@@ -54,6 +56,7 @@
 
                 if (error) {
                   // Handle error
+                  console.log(error);
                   return;
                 }
                 
@@ -93,12 +96,12 @@
             */
             $('#btn-device').click(function(){
             		//TODO: Replace this URL
-                    invokeAPI('https://kytza0mdgb.execute-api.us-west-2.amazonaws.com/beta/device', document.getElementById('deviceInfo'));
+                    invokeAPI('https://m773jwd5q8.execute-api.eu-west-1.amazonaws.com/beta/device', document.getElementById('deviceInfo'));
                 });
 
                 $('#btn-movie').click(function(){
 					        //TODO: Replace this URL
-                    invokeAPI('https://ntq7hay36e.execute-api.us-west-2.amazonaws.com/beta/movie', document.getElementById('movieInfo'));
+                    invokeAPI('https://qqfus40dh3.execute-api.eu-west-1.amazonaws.com/beta/movie', document.getElementById('movieInfo'));
                 });
 
                 function invokeAPI(apiUrl, element){
