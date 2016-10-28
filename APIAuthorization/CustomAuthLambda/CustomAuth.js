@@ -4,7 +4,7 @@ var request = require('request');
 var jwt = require('jsonwebtoken');
 
 
-// A function to generate a response from Authorizer to API Gateway.
+// Generate a response from Authorizer to API Gateway.
 function generate_policy(apiOptions, sub, effect, resource) {
 
   return {
@@ -30,7 +30,7 @@ function generate_policy(apiOptions, sub, effect, resource) {
 }
 
 
-// An authorizer implementation
+
 exports.handler = function (event, context) {
   // Get information about the function that is requested to be invoked.
   // Extract the HTTP method and the resource path from event.methodArn.
@@ -55,9 +55,8 @@ exports.handler = function (event, context) {
   // The access token presented by the client application.
   var access_token = event.authorizationToken;
   
-  //TODO: Replace Client Secret (Refer to Auth0's settings)
-  var signingSecret = '9vs9Wlgk3hwTzkhXaLnV5uwV1DTkw81W';
-  
+  //TODO: Replace Signing Secret (Refer to Auth0 API settings)
+  var signingSecret = '9vs9Wlgk3hwTzkhXaLnV5uwV1DTkw81W';  
 
   console.log(access_token);  
   

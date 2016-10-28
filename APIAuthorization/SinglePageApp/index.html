@@ -88,8 +88,7 @@
                   if(err) {
                     // handle error
                     return;
-                  }
-                  //console.log("User Profile = " + JSON.stringify(profile));
+                  }                  
                   document.getElementById('login').textContent = "Welcome " + profile.nickname + " - Logged in using Identity Provider - " + profile.identities[0].provider;              
               });
             }
