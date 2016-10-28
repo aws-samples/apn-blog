@@ -18,7 +18,7 @@
             "Default": "beta"
         },
         "WebsiteS3BucketName": {
-            "Default": "mycompany.website.com",
+            "Default": "auth0.myspa",
             "Description" : "The name of the bucket hosting your web site. This bucket will be created",
             "Type": "String",
             "MinLength": "1",
