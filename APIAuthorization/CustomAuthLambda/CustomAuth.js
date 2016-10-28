@@ -56,7 +56,7 @@ exports.handler = function (event, context) {
   var access_token = event.authorizationToken;
   
   //TODO: Replace Signing Secret (Refer to Auth0 API settings)
-  var signingSecret = '9vs9Wlgk3hwTzkhXaLnV5uwV1DTkw81W';  
+  var signingSecret = 'ConfigureYourSigningSecretHere';  
 
   console.log(access_token);  
   
