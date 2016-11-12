@@ -13,7 +13,7 @@ variable "ip_range" {
 }
 variable "availability_zones" {
   # No spaces allowed between az names!
-  default = "us-west-2a,us-west-2b,us-west-2c"
+  default = ["us-west-2a","us-west-2b","us-west-2c"]
 }
 variable "vpc_cidr" {
   description = "CIDR for the whole VPC"
