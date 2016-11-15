@@ -10,7 +10,7 @@
 # License for the specific language governing permissions and limitations under the License.
 variable "availability_zones" {
   # No spaces allowed between az names!
-  default = "us-west-2a,us-west-2b,us-west-2c"
+  default = ["us-west-2a","us-west-2b","us-west-2c"]
 }
 
 #
