@@ -1,14 +1,15 @@
 
 // Modules.
 var request = require('request');
+var jwt = require('jsonwebtoken');
 
 
-// A function to generate a response from Authorizer to API Gateway.
-function generate_policy(apiOptions, body, effect, resource) {
+// Generate a response from Authorizer to API Gateway.
+function generate_policy(apiOptions, sub, effect, resource) {
 
   return {
 
-    "principalId": body.email, // the principal user identification associated with the token send by the client
+    "principalId": sub,
     "policyDocument": {
       "Version": "2012-10-17",
       "Statement": [
@@ -29,7 +30,7 @@ function generate_policy(apiOptions, body, effect, resource) {
 }
 
 
-// An authorizer implementation
+
 exports.handler = function (event, context) {
   // Get information about the function that is requested to be invoked.
   // Extract the HTTP method and the resource path from event.methodArn.
@@ -53,47 +54,42 @@ exports.handler = function (event, context) {
 
   // The access token presented by the client application.
   var access_token = event.authorizationToken;
+  
+  //TODO: Replace Signing Secret (Refer to Auth0 API settings)
+  var signingSecret = '9vs9Wlgk3hwTzkhXaLnV5uwV1DTkw81W';  
 
-  // Introspect if the JWT Token is Valid by calling out to Auth0
-  // Validates a JSON Web Token (signature and expiration) and returns the user information associated 
-  // TODO: Replace the TokenInfo API URL
-  var options = {
-    method: 'POST',
-    json: true,
-    url: 'https://auth0jwtdemo.auth0.com/tokeninfo',
-    headers: { 'content-type': 'application/json' },
-    body: { 'id_token': access_token }
-  };
+  console.log(access_token);  
+  
+  //TODO: Replace the audience parameter value
+  jwt.verify(access_token, signingSecret, { audience: 'https://StreamingResourceServer', algorithms: '["HS256"]'}, function(err, decoded){
 
-  request(options, function (error, response, body) {
-    if (error) throw new Error(error);
-    
-    console.log("body = " + JSON.stringify(body));
-    console.log("StatusCode = " + response.statusCode);
+    if (err) {
+      console.log('JWT Verification Error');
+      console.log(err);  
+      console.log(err.message);
+      context.succeed(generate_policy(apiOptions, '', 'Deny', event.methodArn));      
+    } 
+    else {
 
-    // Signature MisMatch or Token expired 401/403. 
-    if (body == "Unauthorized") {
-      context.succeed(generate_policy(apiOptions, body, 'Deny', event.methodArn));
-      console.log("Deny IAM Policy Generated");
-    }
-    else if (response.statusCode == 200)  // JWT is Valid. 
-    {
-      var action = 'Deny';
-		
-	  // Implement additional custom Authorization rules.
-      if ((apiOptions.resource_path.trim() == 'movie' && body.identities[0].provider.trim() == 'amazon') ||
-            (apiOptions.resource_path.trim() == 'device' && body.identities[0].provider.trim() == 'google-oauth2')) {
-                action = 'Allow';
+      console.log(decoded);      
+      console.log("Scope = " + decoded.scope);
+
+      if ((decoded.scope == "read:Devices" && apiOptions.resource_path.trim() == 'device') ||
+          (decoded.scope == "read:Movies" && apiOptions.resource_path.trim() == 'movie')) {
+            context.succeed(generate_policy(apiOptions, decoded.sub, 'Allow', event.methodArn));
+            console.log("Allow IAM Policy Generated");
+      }
+      else {  
+        context.succeed(generate_policy(apiOptions, decoded.sub, 'Deny', event.methodArn));
+        console.log("Deny IAM Policy Generated");
       }
 
-      console.log(action + " IAM Policy Generated");
-      context.succeed(generate_policy(apiOptions, body, action, event.methodArn));
     }
-    else {  //404,500      
-      context.succeed(generate_policy(apiOptions, body, 'Deny', event.methodArn));
-      console.log("Deny IAM Policy Generated");      
-    }
+
   });
 
 };
-	
+  
+
+
+

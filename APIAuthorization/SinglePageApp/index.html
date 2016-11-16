@@ -1,25 +1,29 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <title>Integrate Auth0 with Amazon API Gateway</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet">
-  <link href="css/app.css" rel="stylesheet">
+	<title>Integrate Auth0 with Amazon API Gateway</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">	
+	<link href="css/app.css" rel="stylesheet">
+  <script src="https://cdn.auth0.com/w2/auth0-7.2.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+
 </head>
 
 <h3><span id="login" class="nickname"></span></h3>
+
 <body class="home">
-  <div class="login-page clearfix">
-    <div class="login-box">
-      <div class="welcome-badge"></div>
-      <h2><b>Single Page App</h2>
+	<div class="login-page clearfix">
+		<div class="login-box">
+			<div class="welcome-badge"></div>
+			<h2><b>Single Page App</h2>
       <h5>Authorize API's using Auth0 and Amazon API Gateway</h5>      
     </div>
   </div>
-
-  <button id="btn-login" onclick="lock.show();">Login</button>
+  <!-- //TODO: Replace Query Parameter values -->
+  <a href="https://auth0jwtdemo.auth0.com/authorize?audience=https://StreamingResourceServer&response_type=id_token%20token&client_id=NiOSeEJ3PKjfwOfMBuKJ9EqnDMApWhUq&redirect_uri=http://auth0.myspa.s3-website-eu-west-1.amazonaws.com"> Login </a>
+  
   <div id="apis">
       <table>
         <tr>
@@ -29,61 +33,68 @@
           <td><button id="btn-device" disabled=true >Invoke Device API</button>
           <td><span id="deviceInfo" class="nickname"></span><br>
       <table>
-  </div>
+  </div> 
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/store.js/1.3.14/store.min.js"></script>
-  <script src="https://cdn.auth0.com/js/lock/10.2/lock.min.js"></script>
 
-  <script>
-  		
-       // TODO: Replace the Client Id and DomainID as found in the Auth0 settings portal 
-        var lock = new Auth0Lock('NiOSeEJ3PKjfwOfMBuKJ9EqnDMApWhUq', 'auth0jwtdemo.auth0.com', {
-          auth: {
-            redirectUrl: '', 
-            responseType: 'token'
+  <script>  		
+          
+          function getParameterByName(name) {
+            var match = RegExp('[#&]' + name + '=([^&]*)').exec(window.location.hash);
+            return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
           }
-        });
-       
-        // Listen for the authenticated event and get profile
-        lock.on("authenticated", function(authResult) {
-          
-          localStorage.setItem("idToken", '');                
-          localStorage.setItem("profile", '');
 
-          lock.getProfile(authResult.idToken, function(error, profile) {
+          function getAccessToken() {
+            return getParameterByName('access_token');
+          }
 
-                if (error) {
-                  // Handle error
-                  return;
-                }
-                
-                               
-                // Save token and profile locally
-                console.log(authResult.idToken);
-                
-                localStorage.setItem("idToken", authResult.idToken);                
-                localStorage.setItem("profile", JSON.stringify(profile));
-                
-                // Verify that there's a token in localStorage
-                var token = localStorage.getItem('idToken');
-                if (token) {
-                  showLoggedIn();
-                }
+          function getIdToken() {
+            return getParameterByName('id_token');
+          }
 
-                // Display the user's profile
-                function showLoggedIn() {
-                  var profile = JSON.parse(localStorage.getItem('profile'));
-                  document.getElementById('login').textContent = "Welcome " + profile.nickname + " - Logged in using Identity Provider - " + profile.identities[0].provider;
-                  document.getElementById('btn-movie').disabled=false;
-                  document.getElementById('btn-device').disabled=false;
-                  document.getElementById('btn-login').disabled=true;
+          $(function () {
+            var access_token = getAccessToken();
 
-                }
-           
+            // Optional: an id_token will be returned by Auth0
+            // if your response_type argument contained id_token
+            var id_token = getIdToken();
+
+            localStorage.setItem("idToken", id_token);
+            localStorage.setItem("accessToken", access_token);    
+            console.log("access_token = " + access_token);
+            console.log("id_token = " + id_token); 
+
+            // Use the access token to make API calls
+            // Verify that there's a token in localStorage
+            var token = localStorage.getItem('idToken');
+            if (typeof token !== 'undefined') {
+              showLoggedIn();
+            }
+
+            // Display the user's profile
+            function showLoggedIn() {
+              
+              document.getElementById('btn-movie').disabled=false;
+              document.getElementById('btn-device').disabled=false;
+
+              <!-- //TODO: ClientId, Callback URL, DomainName -->  
+              var auth0 = new Auth0({
+                    domain:       'auth0jwtdemo.auth0.com',
+                    clientID:     'NiOSeEJ3PKjfwOfMBuKJ9EqnDMApWhUq',
+                    callbackURL:  'http://auth0.myspa.s3-website-eu-west-1.amazonaws.com',  
+                    responseType: 'token'
+                  });
+
+              auth0.getProfile(token, function (err, profile) {
+                  if(err) {
+                    // handle error
+                    return;
+                  }                  
+                  document.getElementById('login').textContent = "Welcome " + profile.nickname + " - Logged in using Identity Provider - " + profile.identities[0].provider;              
               });
+            }
+            
+          }); 
 
-          });         
-          
           $(document).ready(function() {
             
             /*
@@ -91,14 +102,14 @@
               In these situations, the browser checks with the server first that the server is willing to accept the request before sending it via the OPTIONS request.
               Unsolicited requests could potentially send large payloads. A pre-flight OPTIONS check verifies if the server can accept/supports them.
             */
-            $('#btn-device').click(function(){
+            $('#btn-device').click(function(){                 
             		//TODO: Replace this URL
-                    invokeAPI('https://kytza0mdgb.execute-api.us-west-2.amazonaws.com/beta/device', document.getElementById('deviceInfo'));
+                    invokeAPI('https://m773jwd5q8.execute-api.eu-west-1.amazonaws.com/beta/device', document.getElementById('deviceInfo'));
                 });
 
                 $('#btn-movie').click(function(){
 					        //TODO: Replace this URL
-                    invokeAPI('https://ntq7hay36e.execute-api.us-west-2.amazonaws.com/beta/movie', document.getElementById('movieInfo'));
+                    invokeAPI('https://qqfus40dh3.execute-api.eu-west-1.amazonaws.com/beta/movie', document.getElementById('movieInfo'));
                 });
 
                 function invokeAPI(apiUrl, element){
@@ -108,7 +119,7 @@
                         type: 'GET',
                     
                         headers: {
-                            "Authorization": localStorage.getItem('idToken')
+                            "Authorization": localStorage.getItem('accessToken')
                         },
                         contentType: 'application/json',
                         success: function (result) {
