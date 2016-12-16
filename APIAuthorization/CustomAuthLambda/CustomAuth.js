@@ -56,12 +56,13 @@ exports.handler = function (event, context) {
   var access_token = event.authorizationToken;
   
   //TODO: Replace Signing Secret (Refer to Auth0 API settings)
-  var signingSecret = 'ConfigureYourSigningSecretHere';  
+  var signingSecret = 'ConfigureYourSigningSecret';  
 
   console.log(access_token);  
   
   //TODO: Replace the audience parameter value
-  jwt.verify(access_token, signingSecret, { audience: 'https://StreamingResourceServer', algorithms: '["HS256"]'}, function(err, decoded){
+  jwt.verify(access_token, signingSecret, { audience: 'https://StreamingResourceServer', algorithms: '["HS256"]'}, 
+   function(err, decoded){
 
     if (err) {
       console.log('JWT Verification Error');

@@ -15,14 +15,13 @@
 
 <body class="home">
 	<div class="login-page clearfix">
-		<div class="login-box">
-			<div class="welcome-badge"></div>
+		<div class="login-box">			
 			<h2><b>Single Page App</h2>
       <h5>Authorize API's using Auth0 and Amazon API Gateway</h5>      
     </div>
   </div>
-  <!-- //TODO: Replace Query Parameter values -->
-  <a href="https://auth0jwtdemo.auth0.com/authorize?audience=https://StreamingResourceServer&response_type=id_token%20token&client_id=NiOSeEJ3PKjfwOfMBuKJ9EqnDMApWhUq&redirect_uri=http://auth0.myspa.s3-website-eu-west-1.amazonaws.com"> Login </a>
+  
+  <a id="login1" > Login </a>
   
   <div id="apis">
       <table>
@@ -36,7 +35,19 @@
   </div> 
 
 
-  <script>  		
+  <script>
+          
+      
+          function genNonce(length) {
+                var bytes = new Uint8Array(length);
+                var random = window.crypto.getRandomValues(bytes);
+                var result = [];
+                var charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._~'
+                random.forEach(function (c) {
+                    result.push(charset[c % charset.length]);
+                });
+                return result.join('');
+          }
           
           function getParameterByName(name) {
             var match = RegExp('[#&]' + name + '=([^&]*)').exec(window.location.hash);
@@ -53,7 +64,8 @@
 
           $(function () {
             var access_token = getAccessToken();
-
+              
+            
             // Optional: an id_token will be returned by Auth0
             // if your response_type argument contained id_token
             var id_token = getIdToken();
@@ -76,11 +88,11 @@
               document.getElementById('btn-movie').disabled=false;
               document.getElementById('btn-device').disabled=false;
 
-              <!-- //TODO: ClientId, Callback URL, DomainName -->  
+              <!-- //TODO: Replace values for ClientId, CallbackURL, Domain -->  
               var auth0 = new Auth0({
                     domain:       'auth0jwtdemo.auth0.com',
-                    clientID:     'NiOSeEJ3PKjfwOfMBuKJ9EqnDMApWhUq',
-                    callbackURL:  'http://auth0.myspa.s3-website-eu-west-1.amazonaws.com',  
+                    clientID:     'rasF8IRHJacMCNs',
+                    callbackURL:  'http://auth0.myspa.s3-website-eu-west-1.amazonaws.com/',  
                     responseType: 'token'
                   });
 
@@ -97,6 +109,19 @@
 
           $(document).ready(function() {
             
+            var match = RegExp('[#&]access_token=([^&]*)').exec(window.location.hash);  
+            // Generate a nonce once
+            if (match === null) {
+  
+                nonce = genNonce(16);
+
+                //TODO: Replace the URL and values for Query Parameters - audience, client_id, redirect_uri  
+                href="https://auth0jwtdemo.auth0.com/authorize?audience=https://StreamingResourceServer&nonce=" + nonce + "&response_type=id_token%20token&client_id=rasF8IRHJacMCNs&redirect_uri=http://auth0.myspa.s3-website-eu-west-1.amazonaws.com/";
+                $("#login1").attr("href",href);
+                
+                localStorage.setItem("nonce", nonce);
+            }
+            
             /*
               By adding CORS, you're potentially accepting requests from any domain.
               In these situations, the browser checks with the server first that the server is willing to accept the request before sending it via the OPTIONS request.
@@ -104,12 +129,12 @@
             */
             $('#btn-device').click(function(){                 
             		//TODO: Replace this URL
-                    invokeAPI('https://m773jwd5q8.execute-api.eu-west-1.amazonaws.com/beta/device', document.getElementById('deviceInfo'));
+                    invokeAPI('https://dplbpub4h4.execute-api.us-west-2.amazonaws.com/beta/device', document.getElementById('deviceInfo'));
                 });
 
                 $('#btn-movie').click(function(){
 					        //TODO: Replace this URL
-                    invokeAPI('https://qqfus40dh3.execute-api.eu-west-1.amazonaws.com/beta/movie', document.getElementById('movieInfo'));
+                    invokeAPI('https://62d1itssug.execute-api.us-west-2.amazonaws.com/beta/movie', document.getElementById('movieInfo'));
                 });
 
                 function invokeAPI(apiUrl, element){
