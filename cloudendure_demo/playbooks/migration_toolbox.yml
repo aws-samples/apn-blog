@@ -1,0 +1,5 @@
+---
+- include: database_provision.yml
+- include: gogs_provision.yml 
+- include: cloudendure_agent_install.yml
+- include: aws_cli_ads_agent_install.yml

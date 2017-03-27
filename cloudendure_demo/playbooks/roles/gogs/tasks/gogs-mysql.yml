@@ -1,0 +1,51 @@
+---
+- name: Install MySQL Python Library For Debian
+  apt: name=python-mysqldb state=installed
+  when: 
+    - gogs_use_mysql
+    - ansible_os_family == 'Debian'
+
+- name: Install MySQL Python Library For RHEL
+  yum: name=MySQL-python state=installed
+  when:
+    - gogs_use_mysql
+    - ansible_os_family == 'RedHat'
+
+#- name: Create Gogs MySQL user.
+#  mysql_user:
+#    host: "{{gogs_hostname}}" 
+#    name: "{{ gogs_db_username }}"
+#    login_host: "{{ item }}"
+#    login_password: "{{ mysql_root_password }}"
+#    priv: "{{ gogs_db_name }}.*:ALL"
+#    password: "{{ gogs_db_password }}"
+#  with_items:
+#    - "{{gogs_db_host}}"
+#  when: gogs_use_mysql
+#  notify: restart gogs
+
+#- name: Create Gogs MySQL database.
+#  mysql_db:
+#    db: "{{ gogs_db_name }}"
+#    login_host: "{{gogs_db_host}}"
+#    login_password: "{{ mysql_root_password }}"
+#    state: present
+#  when: gogs_use_mysql
+#  notify: restart gogs
+
+- name: Create Gogs Config Ini Folder.
+  file:
+    path: "{{ gogs_user_home }}/gogs/custom/conf/"
+    state: directory
+    owner: "{{ gogs_user }}"
+    group: "{{ gogs_user }}"
+    mode: 0755
+
+- name: "Configure Gogs For External MySQL"
+  template:
+    src: custom_app.ini.j2
+    dest: "{{ gogs_user_home }}/gogs/custom/conf/app.ini"
+    owner: "{{ gogs_user }}"
+    group: "{{ gogs_user }}"
+    mode: 0755
+  notify: restart gogs

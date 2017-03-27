@@ -1,0 +1,228 @@
+Description: This template deploys the infrastructure for the re:Invent ENT312 session. This template creates Custom Resources for the Creation of DMS Resources to facilitate Migration Tasks
+Parameters:
+  SourcePublicSubnets:
+    Type: String
+    Description: Comma Seperated List of Subnet IDs
+  DestinationPublicSubnets:
+    Type: String
+    Description: Comma Seperated List of Subnet IDs
+  DestinationPrivateSubnets:
+    Type: String
+    Description: Comma Seperated List of Subnet IDs
+  DMScreateReplicationInstanceFunctionARN:
+    Type: String
+    Description: DMS Replication instance Create Function ARN
+  DMSCreateReplicationSubnetGroupFunctionARN:
+    Type: String
+    Description: ARN To use in Lambda Custom Resource Execution
+  DMSreplicationInstanceWatcherFunctionARN:
+    Type: String
+    Description: ARN for Lambda Replication Instance Watcher
+  DMScreateEndpointFunctionARN:
+    Type: String
+    Description: ARN For Endpoint Creation Function
+  DMSreplicationTaskWatcherFunctionARN:
+    Type: String
+    Description: ARN For Task Watcher.
+  DMScreateReplicationTaskFunctionARN:
+    Type: String
+    Description: ARN For Replication Function
+  DMSMigrationTaskStartFunctionARN:
+    Type: String
+    Description: ARN For DMS Migration Task Manager
+  DMSReplciationInstanceClass:
+    Type: String
+    Description: Class of Instance Used in DMS Replication Instance
+    Default: dms.t2.medium
+  DBSourceEngine:
+    Type: String
+    Description: Source Database Engine
+  DBSourceServerName:
+    Type: String
+    Description: Source Server Name
+  DBSourcePort:
+    Type: String
+    Description: Database Source Port
+  DBSourceUsername:
+    Type: String
+    Description: ARN For Endpoint Creation Function
+  DBSourcePassword:
+    Type: String
+    Description: ARN For Endpoint Creation Function
+  DBTargetEngine:
+    Type: String
+    Description: ARN For Endpoint Creation Function
+  DBTargetServerName:
+    Type: String
+    Description: ARN For Endpoint Creation Function
+  DBTargetPort:
+    Type: String
+    Description: ARN For Endpoint Creation Function
+  DBTargetUsername:
+    Type: String
+    Description: ARN For Endpoint Creation Function
+  DBTargetPassword:
+    Type: String
+    Description: ARN For Endpoint Creation Function
+  MigrationTable:
+    Type: String
+    Description: Table to Migrate from Source to Destination
+Resources:
+  #Create Replication Group for Public Destination Subnets
+  ReplicationDestPublicSubnets:
+    Type: Custom::DMSCreateReplicationSubnetGroup
+    Properties:
+      ServiceToken: !Ref DMSCreateReplicationSubnetGroupFunctionARN
+      Region: !Ref "AWS::Region"
+      ReplicationSubnetGroupDescription: "AWS Migration Demo Public Destination Replication Group Subnet"
+      ReplicationSubnetGroupIdentifier: "aws-migration-demo-public-dest"
+      SubnetIds: !Ref DestinationPublicSubnets
+  #Create Replication Group for Private Destination Subnets
+  ReplicationDestPrivateSubnets:
+    Type: Custom::DMSCreateReplicationSubnetGroup
+    Properties:
+      ServiceToken: !Ref DMSCreateReplicationSubnetGroupFunctionARN
+      Region: !Ref "AWS::Region"
+      ReplicationSubnetGroupDescription: "AWS Migration Demo Private Destination Replication Group Subnet"
+      ReplicationSubnetGroupIdentifier: "aws-migration-demo-private-dest"
+      SubnetIds: !Ref DestinationPrivateSubnets
+  #Create Replication Group for Public Source Subnets
+  ReplicationSrcPublicSubnets:
+    Type: Custom::DMSCreateReplicationSubnetGroup
+    Properties:
+      ServiceToken: !Ref DMSCreateReplicationSubnetGroupFunctionARN
+      Region: !Ref "AWS::Region"
+      ReplicationSubnetGroupDescription: "AWS Migration Demo Public Source Replication Group Subnet"
+      ReplicationSubnetGroupIdentifier: "aws-migration-demo-public-src"
+      SubnetIds: !Ref SourcePublicSubnets
+  #Create a Replication Instance
+  DMSReplicationInstance:
+    Type: Custom::DMSReplicationInstance
+    Properties:
+      ServiceToken: !Ref DMScreateReplicationInstanceFunctionARN
+      Region: !Ref "AWS::Region"
+      ReplicationInstanceClass: !Ref DMSReplciationInstanceClass
+      ReplicationInstanceIdentifier: DMSReplicationInstance
+      ReplicationSubnetGroupIdentifier: !GetAtt ReplicationDestPrivateSubnets.ReplicationSubnetGroupIdentifier
+      PubliclyAccessible: false
+  #Create Wait Handler For Replication Instance
+  DMSWaitHandler:
+    Type: AWS::CloudFormation::WaitConditionHandle
+  DMSWaitCondition:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: ReplicationInstanceWatcher
+    Properties: 
+      Handle: !Ref DMSWaitHandler
+      Timeout: 1200
+  #Allow the Function to be invoked by CW Events
+  InvokeWatcherPermissions:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: !Ref DMSreplicationInstanceWatcherFunctionARN
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ReplicationInstanceWatcher.Arn
+  #Create Invoke Rule For Instance Creation
+  ReplicationInstanceWatcher:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(1 minute)
+      Targets:
+        - Arn: !Ref DMSreplicationInstanceWatcherFunctionARN
+          Id: ReplicationInstanceWatchScheduler
+          Input: !Sub "{\"ReplicationInstanceArn\":\"${DMSReplicationInstance.ReplicationInstanceArn}\",\"HandlerURL\":\"${DMSWaitHandler}\",\"Region\":\"${AWS::Region}\"}"
+  #Create SOURCE Endpoint
+  DMSSrcEndpoint:
+    Type: Custom::DMSEndpoint
+    Properties:
+      ServiceToken: !Ref DMScreateEndpointFunctionARN
+      Region: !Ref "AWS::Region"
+      EndpointIdentifier: aws-migration-demo-src
+      EndpointType: source
+      EngineName: !Ref DBSourceEngine
+      ServerName: !Ref DBSourceServerName
+      Port: !Ref DBSourcePort
+      Username: !Ref DBSourceUsername
+      Password: !Ref DBSourcePassword
+  #Create TARGET Endpoint
+  DMSTrgtEndpoint:
+    Type: Custom::DMSEndpoint
+    Properties:
+      ServiceToken: !Ref DMScreateEndpointFunctionARN
+      Region: !Ref "AWS::Region"
+      EndpointIdentifier: aws-migration-demo-dst
+      EndpointType: target
+      EngineName: !Ref DBTargetEngine
+      ServerName: !Ref DBTargetServerName
+      Port: !Ref DBTargetPort
+      Username: !Ref DBTargetUsername
+      Password: !Ref DBTargetPassword
+  #Create Replication Task
+  DMSMigrateDatabaseTask:
+    DependsOn: DMSWaitCondition
+    Type: Custom::DMSMigration
+    Properties:
+      ServiceToken: !Ref DMScreateReplicationTaskFunctionARN
+      MigrationType: full-load
+      ReplicationInstanceArn: !GetAtt DMSReplicationInstance.ReplicationInstanceArn
+      ReplicationTaskIdentifier: aws-ent312-migration
+      SourceEndpointArn: !GetAtt DMSSrcEndpoint.EndpointArn
+      TableMappings: !Sub "{\"rules\":[{\"rule-type\":\"selection\",\"rule-id\":\"1\",\"rule-name\":\"aws-ent312-migration\",\"object-locator\":{\"schema-name\":\"${MigrationTable}\",\"table-name\":\"%\"},\"rule-action\":\"include\"}]}"
+      TargetEndpointArn: !GetAtt DMSTrgtEndpoint.EndpointArn
+  #Create Wait Handler For Replication Task
+  DMSTaskWaitHandler:
+    Type: AWS::CloudFormation::WaitConditionHandle
+  DMSTaskWaitCondition:
+    DependsOn: DMSMigrateDatabaseTask
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: DMSTaskCreateWatcher
+    Properties: 
+      Handle: !Ref DMSTaskWaitHandler
+      Timeout: 1200
+  #Allow the Function to be invoked by CW Events
+  InvokeTasksWatcherPermissions:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: !Ref DMSreplicationTaskWatcherFunctionARN
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DMSTaskCreateWatcher.Arn
+  #Create Invoke Rule For Instance Creation
+  DMSTaskCreateWatcher:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(1 minute)
+      Targets:
+        - Arn: !Ref DMSreplicationTaskWatcherFunctionARN
+          Id: MigrationTaskWatchScheduler
+          Input: !Sub "{\"ReplicationTaskArn\":\"${DMSMigrateDatabaseTask.ReplicationTaskArn}\",\"HandlerURL\":\"${DMSTaskWaitHandler}\",\"Region\":\"${AWS::Region}\"}"
+  #Start The Migration Task
+  DMSMigrationTaskStart:
+    DependsOn: DMSTaskWaitCondition
+    Type: Custom::MigrationTaskManage
+    Properties:
+      ServiceToken: !Ref DMSMigrationTaskStartFunctionARN
+      ReplicationTaskArn: !GetAtt DMSMigrateDatabaseTask.ReplicationTaskArn
+      StartReplicationTaskType: start-replication
+Outputs:
+  ReplicationDestPublicSubnetGroup:
+    Value: !GetAtt ReplicationDestPublicSubnets.ReplicationSubnetGroupIdentifier
+    Description: Replication Group ID For Destination Public Subnets.
+  ReplicationDestPrivateSubnetGroup:
+    Value: !GetAtt ReplicationDestPrivateSubnets.ReplicationSubnetGroupIdentifier
+    Description: Replication Group ID For Destination Private Subnets.
+  ReplicationSrcPublicSubnetGroup:
+    Value: !GetAtt ReplicationSrcPublicSubnets.ReplicationSubnetGroupIdentifier
+    Description: Replication Group ID For Source Public Subnets.
+  DMSReplicationInstanceARN:
+    Value: !GetAtt DMSReplicationInstance.ReplicationInstanceArn
+    Description: DMSReplication Instance ARN
+  DMSMigrateDatabaseTask:
+    Value: !GetAtt DMSMigrateDatabaseTask.ReplicationTaskArn
+    Description: DMS Replication Task Arn
+
+
+
+
+
+

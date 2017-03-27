@@ -1,0 +1,38 @@
+---
+- hosts: gogs_servers
+  become: yes
+  tasks:
+    - name: install epel-release
+      yum: name=epel-release state=latest
+
+    - name: install kernel-devel
+      yum: name=kernel-devel state=latest
+
+    - name: install gcc
+      yum: name=gcc state=latest
+
+    - name: upgrade all packages
+      yum: name=* state=latest
+
+    - name: install python-pip
+      yum: name=python-pip state=latest
+
+    - pip: name=boto3
+
+    - name: Download CloudEndure
+      get_url:
+        url: https://console.cloudendure.com/installer_linux.py
+        dest: /home/centos/installer_linux.py
+        mode: 0777
+
+    - name: Install CloudEndure
+      command: python /home/centos/installer_linux.py --no-prompt -u CloudEndureUser -p CloudEndurePassword
+
+    - name: Create CloudEndure Testing Directory
+      file: path=/boot/ce_conversion state=directory
+
+    - name: Copy Migration Tests
+      copy: src=files/CloudEndure.sh dest=/boot/ce_conversion/CloudEndure.sh owner=root group=root mode=0755
+
+    - name: Copy Migration SNS Script
+      copy: src=files/CloudEndure_PostProcessing.py dest=/opt/CloudEndure_PostProcessing.py owner=root group=root

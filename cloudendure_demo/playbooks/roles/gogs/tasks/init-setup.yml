@@ -1,0 +1,16 @@
+---
+- name: Make Gogs init script executable.
+  file:
+    path: "{{ gogs_user_home }}/{{ gogs_init_script_path }}"
+    mode: 0755
+  when: ansible_os_family == 'Debian'
+
+- name: Symlink Gogs binary and startup scripts.
+  file:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: hard
+  with_items:
+    - { src: "{{ gogs_user_home }}/gogs/gogs", dest: "/usr/local/bin/gogs" }
+    - { src: "{{ gogs_user_home }}/{{ gogs_init_script_path }}" , dest: "{{ gogs_init_dest_path }}" }
+  notify: restart gogs

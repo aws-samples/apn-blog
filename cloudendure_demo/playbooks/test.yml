@@ -1,0 +1,6 @@
+---
+- hosts: database_servers
+  vars_files:
+    - vars/gogs.yml
+  tasks:
+  - debug: msg="System Test {{gogs_db_hosts}}"

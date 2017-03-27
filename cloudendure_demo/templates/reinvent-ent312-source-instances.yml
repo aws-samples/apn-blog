@@ -1,0 +1,212 @@
+Description: This template deploys the infrastructure for the re:Invent ENT312 session. This template creates three source instances for the psuedo source environment
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Key Pair to use for the deployed instances
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    Description: Instance type for Launching Instance
+  SourcePublicSubnet1ID:
+    Type: String
+    Description: Public Subnet Source 1
+  SourcePublicSubnet2ID:
+    Type: String
+    Description: Public Subnet Source 2
+  SourceVPCID:
+    Type: String
+    Description: Source VPC
+  DestVPCCIDR:
+    Type: String
+    Description: Destination VPC Cidr
+  CloudEndureSNSTopic:
+    Type: String
+    Description: ARN of ENT312CloudEndureSNSTopic
+  GogsDNS:
+    Type: String
+    Description: Fully qualified DNS name for Migrated Gogs Environment. Same value as gogsdns in config.yml
+  CloudEndureUser:
+    Type: String
+    Description: Username for CloudEndure
+  CloudEndurePassword:
+    Type: String
+    Description: Password for CloudEndure
+  S3Bucket:
+    Type: String
+    Description: S3 bucket name for the assets. 
+  S3KeyName:
+    Type: String
+    Description: S3 key prefix for the assets. 
+Mappings: 
+  AMIRegionMap: 
+    ap-south-1:
+      "64": "ami-95cda6fa"
+    eu-west-1:
+      "64": "ami-7abd0209"
+    ap-northeast-2:
+      "64": "ami-c74789a9"
+    ap-northeast-1:
+      "64": "ami-eec1c380"
+    sa-east-1:
+      "64": "ami-26b93b4a"
+    ap-southeast-1:
+      "64": "ami-f068a193"
+    ap-southeast-2:
+      "64": "ami-fedafc9d"
+    eu-central-1:
+      "64": "ami-9bf712f4"
+    us-east-1:
+      "64": "ami-6d1c2007"
+    us-east-2:
+      "64": "ami-6a2d760f"
+    us-west-1:
+      "64": "ami-af4333cf"
+    us-west-2:
+      "64": "ami-d2c924b2"
+Resources:
+  AWSCLIADSUser:
+    Type: "AWS::IAM::User"
+    Properties: 
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/ReadOnlyAccess
+      - arn:aws:iam::aws:policy/AWSApplicationDiscoveryServiceFullAccess
+      Policies:
+      - PolicyName: "CloudEndureSNSTopicAccess"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "sns:Publish"
+            Resource: !Ref CloudEndureSNSTopic
+      UserName: AWSCLIADSUser
+  AWSCLIADSAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName:
+        Ref: AWSCLIADSUser
+  MigrationSrcServersSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref SourceVPCID
+      GroupDescription: allow connections from specified CIDR ranges
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        CidrIp: !Ref DestVPCCIDR
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 3000
+        ToPort: 3000
+        CidrIp: 0.0.0.0/0
+  AllowIngressFromSecurityGroup:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      FromPort: -1
+      GroupId: !GetAtt MigrationSrcServersSecurityGroup.GroupId
+      IpProtocol: -1
+      SourceSecurityGroupId: !GetAtt MigrationSrcServersSecurityGroup.GroupId
+      ToPort: -1
+  DatabaseSourceInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+        Tags:
+          - Key: "Name"
+            Value: "Source-Ansible-Database"
+          - Key: "Asset"
+            Value: "ent312-demo-resources"
+        SubnetId: !Ref SourcePublicSubnet1ID
+        ImageId: !FindInMap [ AMIRegionMap, !Ref 'AWS::Region' , 64 ]
+        KeyName: !Ref KeyPairName
+        InstanceType: !Ref InstanceType
+        SecurityGroupIds:
+        - !GetAtt MigrationSrcServersSecurityGroup.GroupId
+        BlockDeviceMappings:
+        -
+          DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 50
+  GogsSourceInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+        UserData: !Base64
+                    "Fn::Sub": |
+                        #!/bin/bash
+                        yum install -y epel-release
+                        yum update -y
+                        yum install -y gcc kernel-devel
+        Tags:
+          - Key: "Name"
+            Value: "Source-Ansible-Gogs"
+          - Key: "Asset"
+            Value: "ent312-demo-resources"
+        SubnetId: !Ref SourcePublicSubnet1ID
+        ImageId: !FindInMap [ AMIRegionMap, !Ref 'AWS::Region' , 64 ]
+        KeyName: !Ref KeyPairName
+        InstanceType: !Ref InstanceType
+        SecurityGroupIds:
+        - !GetAtt MigrationSrcServersSecurityGroup.GroupId
+        BlockDeviceMappings:
+        -
+          DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 50
+  AnsibleSourceInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+        UserData: !Base64
+                    "Fn::Sub": |
+                        #!/bin/bash
+                        curl -kLo /home/centos/playbooks.tar.gz "https://s3-us-west-2.amazonaws.com/${S3Bucket}/${S3KeyName}/playbooks.tar.gz"
+                        tar -xf /home/centos/playbooks.tar.gz -C /home/centos/
+                        chown centos:centos /home/centos/playbooks.tar.gz
+                        chown -R centos:centos /home/centos/playbooks
+                        sed -i 's/ent312.five0.ninja/${GogsDNS}/' /home/centos/playbooks/files/CloudEndure.sh
+                        sed -i 's/CloudEndureUser/${CloudEndureUser}/' /home/centos/playbooks/cloudendure_agent_install.yml
+                        sed -i 's/CloudEndurePassword/${CloudEndurePassword}/' /home/centos/playbooks/cloudendure_agent_install.yml
+                        sed -i 's/(AccessKeyId)/${AWSCLIADSAccessKey}/' /home/centos/playbooks/vars/awscli.yml
+                        sed -i 's|(SecretAccessKeyId)|${AWSCLIADSAccessKey.SecretAccessKey}|' /home/centos/playbooks/vars/awscli.yml
+                        sed -i 's/(gogs_server_hostname)/${GogsSourceInstance.PrivateDnsName}/' /home/centos/playbooks/hosts
+                        sed -i 's/(database_server_hostname)/${DatabaseSourceInstance.PrivateDnsName}/' /home/centos/playbooks/hosts
+                        sed -i 's/(gogs_server_hostname)/${GogsSourceInstance.PublicDnsName}/' /home/centos/playbooks/vars/gogs.yml
+                        sed -i 's/(database_server_hostname)/${DatabaseSourceInstance.PrivateDnsName}/' /home/centos/playbooks/vars/gogs.yml
+                        yum update -y
+                        yum install -y epel-release
+                        yum install -y ansible
+        Tags:
+          - Key: "Name"
+            Value: "Source-Ansible-Master"
+          - Key: "Asset"
+            Value: "ent312-demo-resources"
+        SubnetId: !Ref SourcePublicSubnet1ID
+        ImageId: !FindInMap [ AMIRegionMap, !Ref 'AWS::Region' , 64 ]
+        KeyName: !Ref KeyPairName
+        InstanceType: !Ref InstanceType
+        SecurityGroupIds:
+        - !GetAtt MigrationSrcServersSecurityGroup.GroupId
+        BlockDeviceMappings:
+        -
+          DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 50
+Outputs:
+  DatabaseSourceInstance:
+    Value: !GetAtt DatabaseSourceInstance.PrivateDnsName
+    Description: DB Instance Hostname
+  GogsSourceInstance:
+    Value: !GetAtt GogsSourceInstance.PublicDnsName
+    Description: Gogs Instance Hostname
+  AnsibleSourceInstance:
+    Value: !GetAtt AnsibleSourceInstance.PublicDnsName
+    Description: Ansible Master Hostname
+  AWSCLIADSAccessKey:
+    Value: 
+      Ref: AWSCLIADSAccessKey
+    Description: AWS CLI ADS User IAMUserAccessKey
+  AWSCLIADSAccessKeySecretAccessKey:
+    Value: !GetAtt AWSCLIADSAccessKey.SecretAccessKey
+    Description: AWS CLI ADS User SecretKey

@@ -1,0 +1,55 @@
+---
+- hosts: gogs_servers
+  become: yes
+  vars_files:
+    - vars/awscli.yml
+  tasks:
+    - name: install epel-release
+      yum: name=epel-release state=latest
+
+    - name: install python-pip
+      yum: name=python-pip state=latest
+
+    - name: install AWS CLI
+      pip: name=awscli state=latest
+
+    - name: 'Create the AWS config directory for centos user'
+      file: >
+        path=.aws
+        state=directory
+        owner=centos
+        group=centos
+        mode=0755
+
+    - name: 'Copy AWS CLI config for centos user'
+      template: >
+        src=files/aws_cli_config.j2
+        dest=.aws/config
+        owner=centos
+        group=centos
+        mode=0600
+
+    - name: 'Create the AWS config directory for root user'
+      file: >
+        path=/root/.aws
+        state=directory
+        owner=root
+        group=root
+        mode=0755
+
+    - name: 'Copy AWS CLI config for root user'
+      template: >
+        src=files/aws_cli_config.j2
+        dest=/root/.aws/config
+        owner=root
+        group=root
+        mode=0600
+
+    - name: 'Download Application Discovery Service'
+      get_url:
+        url: https://s3-us-west-2.amazonaws.com/aws-agent-discovery.us-west-2/linux/latest/install
+        dest: /home/centos/install
+        mode: 0777
+
+    - name: 'Install Application Discovery Service'
+      command: sh /home/centos/install -r us-west-2

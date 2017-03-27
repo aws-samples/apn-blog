@@ -1,0 +1,10 @@
+username       : CloudEndureUser
+password       : CloudEndurePassword
+version        : /latest/
+hosttomigrate  : ip-10-10-130-139
+stackname      : CloudEndureBlogDemo
+keypairname    : ent312-demo
+sqsqueue       : ENT312CloudEndureSQSQueue
+gogstemplate   : https://s3-us-west-2.amazonaws.com/apnblog.awspartner.com/FacilitatingAMigrationToAWSWithCloudEndureByLeveragingAutomation/latest/templates/reinvent-ent312-migrated-gogs.template
+gogsdns        : ent312.five0.ninja
+region         : us-west-2

@@ -1,0 +1,305 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "RDS CloudFormation Template for ENT312.",
+	"Parameters": {
+		"EnvironmentType": {
+			"Type": "String",
+			"Default": "ent312demo"
+		},
+		"VpcId": {
+			"Type": "AWS::EC2::VPC::Id"
+		},
+		"Subnets": {
+			"Type": "List<AWS::EC2::Subnet::Id>"
+		},
+		"AvailabilityZones": {
+			"Type": "List<AWS::EC2::AvailabilityZone::Name>"
+		},
+		"DestVPCCIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.0.0.0/16",
+			"Description": "CIDR block for the Dest VPC",
+			"Type": "String"
+		},
+		"SourceVPCCIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.10.0.0/16",
+			"Description": "CIDR block for the Source VPC",
+			"Type": "String"
+		},
+		"Storage": {
+			"Type": "String",
+			"Default": "180"
+		},
+		"InstanceClass": {
+			"Type": "String",
+			"Default": "db.t2.large"
+		},
+		"StorageType": {
+			"Type": "String",
+			"Default": "gp2"
+		},
+		"BackupRetentionPeriod": {
+			"Type": "String",
+			"Default": "7"
+		},
+		"DBUser": {
+			"Type": "String",
+			"Default": "ent312_demo"
+		},
+		"DBPassword": {
+			"Type": "String",
+			"Default": "hv123!ZPPos!"
+		},
+		"DBName": {
+			"Type": "String",
+			"Default": "ent312demo"
+		}
+	},
+	"Resources": {
+		"ENT312DemoSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": {
+					"Fn::Join": [
+						"", [{
+								"Ref": "EnvironmentType"
+							},
+							"-", {
+								"Ref": "AWS::Region"
+							},
+							"-database-securitygroup"
+						]
+					]
+				},
+				"VpcId": {
+					"Ref": "VpcId"
+				},
+				"SecurityGroupIngress": [{
+					"IpProtocol": "tcp",
+					"FromPort": "3306",
+					"ToPort": "3306",
+					"CidrIp": {
+						"Ref": "DestVPCCIDR"
+					}
+				}, {
+					"IpProtocol": "tcp",
+					"FromPort": "3306",
+					"ToPort": "3306",
+					"CidrIp": {
+						"Ref": "SourceVPCCIDR"
+					}
+				}, {
+					"IpProtocol": "tcp",
+					"FromPort": "3306",
+					"ToPort": "3306",
+					"CidrIp": "0.0.0.0/0"
+				}],
+				"Tags": [{
+					"Key": "Environment",
+					"Value": {
+						"Ref": "EnvironmentType"
+					}
+				}, {
+					"Key": "Name",
+					"Value": {
+						"Fn::Join": [
+							"", [{
+									"Ref": "EnvironmentType"
+								},
+								"-", {
+									"Ref": "AWS::Region"
+								},
+								"-database-securitygroup"
+							]
+						]
+					}
+				}]
+			}
+		},
+		"ENT312DemoSubnetGroup": {
+			"Type": "AWS::RDS::DBSubnetGroup",
+			"Properties": {
+				"DBSubnetGroupDescription": {
+					"Fn::Join": [
+						"", [{
+								"Ref": "EnvironmentType"
+							},
+							"-", {
+								"Ref": "AWS::Region"
+							},
+							"-database-subnetgroup"
+						]
+					]
+				},
+				"SubnetIds": {
+					"Ref": "Subnets"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Fn::Join": [
+							"", [{
+									"Ref": "EnvironmentType"
+								},
+								"-", {
+									"Ref": "AWS::Region"
+								},
+								"-database-subnetgroup"
+							]
+						]
+					}
+				}, {
+					"Key": "Environment",
+					"Value": {
+						"Ref": "EnvironmentType"
+					}
+				}]
+			}
+		},
+		"ENT312DemoParameterGroup": {
+			"Type": "AWS::RDS::DBParameterGroup",
+			"Properties": {
+				"Description": "ENT312 Demo Parameter Group",
+				"Family": "mysql5.7"
+			}
+		},
+		"ENT312DemoOptionGroup": {
+			"Type": "AWS::RDS::OptionGroup",
+			"Properties": {
+				"EngineName": "mysql",
+				"MajorEngineVersion": "5.7",
+				"OptionGroupDescription": {
+					"Fn::Join": [
+						"", [{
+								"Ref": "EnvironmentType"
+							},
+							"-", {
+								"Ref": "AWS::Region"
+							},
+							"-database-optiongroup"
+						]
+					]
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Fn::Join": [
+							"", [{
+									"Ref": "EnvironmentType"
+								},
+								"-", {
+									"Ref": "AWS::Region"
+								},
+								"-database-optiongroup"
+							]
+						]
+					}
+				}, {
+					"Key": "Environment",
+					"Value": {
+						"Ref": "EnvironmentType"
+					}
+				}]
+			}
+
+		},
+		"ENT312DemoDB": {
+			"Type": "AWS::RDS::DBInstance",
+			"Properties": {
+				"AllocatedStorage": {
+					"Ref": "Storage"
+				},
+				"AllowMajorVersionUpgrade": "false",
+				"AutoMinorVersionUpgrade": "true",
+				"DBInstanceClass": {
+					"Ref": "InstanceClass"
+				},
+				"Port": "3306",
+				"StorageType": {
+					"Ref": "StorageType"
+				},
+				"BackupRetentionPeriod": {
+					"Ref": "BackupRetentionPeriod"
+				},
+				"MasterUsername": {
+					"Ref": "DBUser"
+				},
+				"MasterUserPassword": {
+					"Ref": "DBPassword"
+				},
+				"PreferredBackupWindow": "07:21-07:51",
+				"PreferredMaintenanceWindow": "wed:08:01-wed:08:31",
+				"DBInstanceIdentifier": {
+					"Fn::Join": [
+						"", [{
+								"Ref": "DBName"
+							},
+							"-", {
+								"Ref": "EnvironmentType"
+							},
+							"-", {
+								"Ref": "AWS::Region"
+							},
+							"-database"
+						]
+					]
+				},
+				"DBName": {
+					"Ref": "DBName"
+				},
+				"Engine": "MySQL",
+				"EngineVersion": "5.7",
+				"MultiAZ": "true",
+				"DBSubnetGroupName": {
+					"Ref": "ENT312DemoSubnetGroup"
+				},
+				"DBParameterGroupName": {
+					"Ref": "ENT312DemoParameterGroup"
+				},
+				"OptionGroupName": {
+					"Ref": "ENT312DemoOptionGroup"
+				},
+				"VPCSecurityGroups": [{
+					"Ref": "ENT312DemoSecurityGroup"
+				}],
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Fn::Join": [
+							"", [{
+									"Ref": "EnvironmentType"
+								},
+								"-", {
+									"Ref": "AWS::Region"
+								},
+								"-database"
+							]
+						]
+					}
+				}, {
+					"Key": "Environment",
+					"Value": {
+						"Ref": "EnvironmentType"
+					}
+				}]
+			}
+		}
+	},
+	"Outputs": {
+		"StackName": {
+			"Value": {
+				"Ref": "AWS::StackName"
+			}
+		},
+		"Endpoint": {
+			"Value": {
+				"Fn::GetAtt": [
+					"ENT312DemoDB",
+					"Endpoint.Address"
+				]
+			},
+			"Description": "RDS Endpoint Address"
+		}
+	}
+}
