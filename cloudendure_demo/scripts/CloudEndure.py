@@ -241,12 +241,11 @@ def start_conversion():
                 machine_ready = False
                 while not machine_ready:
                     number_of_tries = number_of_tries + 1
-                    # Guessing here because I don't know
-                    # when the cookies expire in CloudEndure.
+                    # CloudEndure cookies expire after 60 min
                     # The check_machine_ready function sleeps
                     # every 30 seconds so re-logging in
-                    # every 15 min or so should work...
-                    if number_of_tries < 7:
+                    # every 45 min or so should work...
+                    if number_of_tries < 25:
                         machine_ready = check_machine_ready(machine_id, project_id)
                     else:
                         number_of_tries = 0
