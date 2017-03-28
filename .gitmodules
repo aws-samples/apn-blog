@@ -10,3 +10,6 @@
 [submodule "cloudendure_demo/playbooks/roles/mysql"]
 	path = cloudendure_demo/playbooks/roles/mysql
 	url = https://github.com/bennojoy/mysql.git
+[submodule "cloudendure_demo/playbooks/roles/gogs"]
+	path = cloudendure_demo/playbooks/roles/gogs
+	url = https://github.com/mandusm/ansible-role-gogs.git
