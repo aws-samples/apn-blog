@@ -1,3 +1,0 @@
----
-gogs_init_script_path: gogs/scripts/init/debian/gogs
-gogs_init_dest_path: /etc/init.d/gogs

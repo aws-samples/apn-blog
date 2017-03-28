@@ -1,3 +1,0 @@
----
-gogs_init_script_path: gogs/scripts/systemd/gogs.service
-gogs_init_dest_path: /etc/systemd/system/gogs.service
