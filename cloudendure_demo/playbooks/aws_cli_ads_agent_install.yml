@@ -49,7 +49,7 @@
       get_url:
         url: https://s3-us-west-2.amazonaws.com/aws-agent-discovery.us-west-2/linux/latest/install
         dest: /home/centos/install
-        mode: 0777
+        mode: 0755
 
     - name: 'Install Application Discovery Service'
       command: sh /home/centos/install -r us-west-2
