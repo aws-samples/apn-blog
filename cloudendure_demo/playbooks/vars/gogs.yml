@@ -1,6 +1,6 @@
 gogs_use_mysql: true
 gogs_db_name: gogs
-gogs_db_username: ent312_demo
-gogs_db_password: hv123!ZPPos!
+gogs_db_username: (database_server_user)
+gogs_db_password: (database_server_password)
 gogs_db_host: (database_server_hostname) 
 gogs_domain_url: (gogs_server_hostname)

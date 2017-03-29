@@ -1,1274 +1,804 @@
-{
-
-	"AWSTemplateFormatVersion": "2010-09-09",
-
-	"Description": "This template deploys the infrastructure for the CloudEndure Blog Post / re:Invent ENT312 session. This template creates Amazon EC2 instances and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
-
-	"Metadata": {
-
-		"AWS::CloudFormation::Interface": {
-
-			"ParameterGroups": [{
-
-				"Label": {
-
-					"default": "AWS CloudEndure Blog Post - reInvent ENT312 Configuration"
-
-				},
-
-				"Parameters": [
-
-					"S3BucketName",
-
-					"S3KeyPrefix",
-
-					"GogsDNS",
-
-					"CloudEndureUser",
-
-					"CloudEndurePassword"
-				]
-
-			}, {
-
-				"Label": {
-
-					"default": "Network Configuration"
-
-				},
-
-				"Parameters": [
-
-					"AvailabilityZones",
-
-					"VPCCIDR",
-
-					"PrivateSubnet1CIDR",
-
-					"PrivateSubnet2CIDR",
-
-					"PublicSubnet1CIDR",
-
-					"PublicSubnet2CIDR"
-
-				]
-
-			}, {
-
-				"Label": {
-
-					"default": "Amazon EC2 Configuration"
-
-				},
-
-				"Parameters": [
-
-					"KeyPairName",
-
-					"NATInstanceType"
-
-				]
-
-			}],
-
-			"ParameterLabels": {
-
-				"S3BucketName": {
-
-					"default": "S3 Bucket Name"
-
-				},
-
-				"S3KeyPrefix": {
-
-					"default": "S3 Key Prefix"
-
-				},
-
-				"GogsDNS": {
-					"default": "Migrated Gogs DNS"
-				},
-
-				"CloudEndureUser": {
-					"default": "CloudEndureUser"
-				},
-				"CloudEndurePassword": {
-					"default": "CloudEndurePassword"
-				},
-				"AvailabilityZones": {
-
-					"default": "Availability Zones"
-
-				},
-
-				"DestCreateAdditionalPrivateSubnets": {
-
-					"default": "Create additional private subnets with dedicated network ACLs"
-
-				},
-
-				"KeyPairName": {
-
-					"default": "Key pair name"
-
-				},
-
-				"NATInstanceType": {
-
-					"default": "NAT instance type"
-
-				},
-
-				"NumberOfAZs": {
-
-					"default": "Number of Availability Zones"
-
-				},
-
-				"SourcePublicSubnet1CIDR": {
-
-					"default": "Source Public subnet 1 CIDR"
-
-				},
-
-				"SourcePublicSubnet2CIDR": {
-
-					"default": "Source Public subnet 2 CIDR"
-
-				},
-
-				"SourceVPCCIDR": {
-
-					"default": "Source VPC CIDR"
-
-				},
-
-				"DestPrivateSubnet1ACIDR": {
-
-					"default": "Dest Private subnet 1A CIDR"
-
-				},
-
-				"DestPrivateSubnet1BCIDR": {
-
-					"default": "Dest Private subnet 1B with dedicated network ACL CIDR"
-
-				},
-
-				"DestPrivateSubnet2ACIDR": {
-
-					"default": "Dest Private subnet 2A CIDR"
-
-				},
-
-				"DestPrivateSubnet2BCIDR": {
-
-					"default": "Dest Private subnet 2B with dedicated network ACL CIDR"
-
-				},
-
-				"DestPublicSubnet1CIDR": {
-
-					"default": "Dest Public subnet 1 CIDR"
-
-				},
-
-				"DestPublicSubnet2CIDR": {
-
-					"default": "Dest Public subnet 2 CIDR"
-
-				},
-
-				"DestVPCCIDR": {
-
-					"default": "Dest VPC CIDR"
-
-				}
-
-			}
-
-		}
-
-	},
-
-	"Parameters": {
-
-		"S3BucketName": {
-
-			"AllowedPattern": "^[0-9a-zA-Z.]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
-
-			"ConstraintDescription": "bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-
-			"Default": "apnblog.awspartner.com",
-
-			"Description": "S3 bucket name for the assets - Only change this value if hosting the assets yourself. Bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
-
-			"Type": "String"
-
-		},
-
-		"S3KeyPrefix": {
-
-			"AllowedPattern": "^[0-9a-zA-Z-]+(/[0-9a-zA-Z-]+)*$",
-
-			"ConstraintDescription": "Key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with forward slash (/) because they are automatically appended.",
-
-			"Default": "FacilitatingAMigrationToAWSWithCloudEndureByLeveragingAutomation/latest",
-
-			"Description": "S3 key prefix for the Quick Start assets. Key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with forward slash (/) because they are automatically appended.",
-
-			"Type": "String"
-
-		},
-
-		"GogsDNS": {
-
-			"Default": "ent312.five0.ninja",
-
-			"Description": "FQDN for Migrated Gogs Environment. Same value as gogsdns in config.yml",
-
-			"Type": "String"
-
-		},
-
-		"CloudEndureUser": {
-
-			"Description": "Username for CloudEndure",
-
-			"Type": "String"
-		},
-
-		"CloudEndurePassword": {
-
-			"Description": "Password for CloudEndure",
-
-			"Type": "String"
-		},
-
-		"AvailabilityZones": {
-
-			"Description": "Only pick two - List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
-
-			"Type": "List<AWS::EC2::AvailabilityZone::Name>"
-
-		},
-
-		"DestCreateAdditionalPrivateSubnets": {
-
-			"AllowedValues": [
-
-				"true",
-
-				"false"
-
-			],
-
-			"Default": "false",
-
-			"Description": "Set to true to create a network ACL protected subnet in each Availability Zone. If false, the CIDR parameters for those subnets will be ignored.",
-
-			"Type": "String"
-
-		},
-
-		"KeyPairName": {
-
-			"Description": "You must create this first. Public/private key pairs allow you to securely connect to your NAT instance after it launches. This is used only if the region does not support NAT gateways.",
-
-			"Type": "AWS::EC2::KeyPair::KeyName"
-
-		},
-
-		"NATInstanceType": {
-
-			"AllowedValues": [
-
-				"t2.nano",
-
-				"t2.micro",
-
-				"t2.small",
-
-				"t2.medium",
-
-				"t2.large",
-
-				"m3.medium",
-
-				"m3.large",
-
-				"m4.large"
-
-			],
-
-			"Default": "t2.small",
-
-			"Description": "Amazon EC2 instance type for the NAT instances. This is used only if the region does not support NAT gateways.",
-
-			"Type": "String"
-
-		},
-
-		"NumberOfAZs": {
-
-			"AllowedValues": [
-
-				"2"
-
-			],
-
-			"Default": "2",
-
-			"Description": "Only pick two - Number of Availability Zones to use in the VPC. This must match your selections in the list of Availability Zones parameter.",
-
-			"Type": "String"
-
-		},
-
-		"DestPrivateSubnet1ACIDR": {
-
-			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-
-			"Default": "10.0.0.0/19",
-
-			"Description": "CIDR block for private subnet 1A located in Availability Zone 1 in the Dest VPC.",
-
-			"Type": "String"
-
-		},
-
-		"DestPrivateSubnet1BCIDR": {
-
-			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-
-			"Default": "10.0.192.0/21",
-
-			"Description": "CIDR block for private subnet 1B with dedicated network ACL located in Availability Zone 1 in the Dest VPC.",
-
-			"Type": "String"
-
-		},
-
-		"DestPrivateSubnet2ACIDR": {
-
-			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-
-			"Default": "10.0.32.0/19",
-
-			"Description": "CIDR block for private subnet 2A located in Availability Zone 2 in the Dest VPC.",
-
-			"Type": "String"
-
-		},
-
-		"DestPrivateSubnet2BCIDR": {
-
-			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-
-			"Default": "10.0.200.0/21",
-
-			"Description": "CIDR block for private subnet 2B with dedicated network ACL located in Availability Zone 2 in the Dest VPC.",
-
-			"Type": "String"
-
-		},
-
-		"DestPublicSubnet1CIDR": {
-
-			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-
-			"Default": "10.0.128.0/20",
-
-			"Description": "CIDR block for the public DMZ subnet 1 located in Availability Zone 1 in the Dest VPC.",
-
-			"Type": "String"
-
-		},
-
-		"DestPublicSubnet2CIDR": {
-
-			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-
-			"Default": "10.0.144.0/20",
-
-			"Description": "CIDR block for the public DMZ subnet 2 located in Availability Zone 2 in the Dest VPC.",
-
-			"Type": "String"
-
-		},
-
-		"DestVPCCIDR": {
-
-			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-
-			"Default": "10.0.0.0/16",
-
-			"Description": "CIDR block for the Dest VPC",
-
-			"Type": "String"
-
-		},
-
-		"SourceVPCCIDR": {
-
-			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-
-			"Default": "10.10.0.0/16",
-
-			"Description": "CIDR block for the Source VPC",
-
-			"Type": "String"
-
-		},
-
-		"SourcePublicSubnet1CIDR": {
-
-			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-
-			"Default": "10.10.128.0/20",
-
-			"Description": "CIDR block for the public subnet 1 located in Availability Zone 1 in the Source VPC",
-
-			"Type": "String"
-
-		},
-
-		"SourcePublicSubnet2CIDR": {
-
-			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
-
-			"Default": "10.10.144.0/20",
-
-			"Description": "CIDR block for the public subnet 2 located in Availability Zone 2 in the Source VPC",
-
-			"Type": "String"
-
-		},
-
-		"ModuleName": {
-
-			"Default": "lambda_dms",
-
-			"Type": "String",
-
-			"Description": "The name of the Module being invoked by Lambda for Custom DMS Resources."
-
-		},
-
-		"DMSReplciationInstanceClass": {
-
-			"Default": "dms.t2.medium",
-
-			"Type": "String",
-
-			"Description": "Database Migration Service Replication Instance Type"
-
-		},
-
-		"DBTargetPort": {
-
-			"Type": "String",
-
-			"Description": "Port for DMS Migration Target Database",
-
-			"Default": "3306"
-
-		},
-
-		"DBSourcePort": {
-
-			"Type": "String",
-
-			"Description": "Port For DMS Migration Source Database",
-
-			"Default": "3306"
-
-		},
-
-		"MigrationTable": {
-
-			"Type": "String",
-
-			"Description": "Database table to Migrate in DMS Migration",
-
-			"Default": "gogs"
-
-		},
-
-		"DBSourcePassword": {
-
-			"Type": "String",
-
-			"Description": "Password for DMS Access to Source Database",
-
-			"Default": "hv123!ZPPos!"
-
-		},
-
-		"DBTargetPassword": {
-
-			"Type": "String",
-
-			"Description": "Password for DMS Access to Target Database",
-
-			"Default": "hv123!ZPPos!"
-
-		},
-
-		"DBSourceUsername": {
-
-			"Type": "String",
-
-			"Description": "Username for DMS Access to Source Database",
-
-			"Default": "ent312_demo"
-
-		},
-
-		"DBTargetEngine": {
-
-			"Default": "mysql",
-
-			"Type": "String",
-
-			"Description": "Database Engine for Target Database"
-
-		},
-
-		"DBTargetUsername": {
-
-			"Type": "String",
-
-			"Description": "Username for DMS Access to Target Database",
-
-			"Default": "ent312_demo"
-
-		},
-
-		"DBSourceEngine": {
-
-			"Default": "mysql",
-
-			"Type": "String",
-
-			"Description": "Database Engine for Source Database"
-
-		},
-
-		"SourceInstancesType": {
-
-			"Description": "Instance type for Source Instances.",
-
-			"Type": "String",
-
-			"Default": "t2.micro"
-
-		}
-
-	},
-
-	"Mappings": {
-
-		"AWSInfoRegionMap": {
-
-			"ap-northeast-1": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			},
-
-			"ap-northeast-2": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			},
-
-			"ap-south-1": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			},
-
-			"ap-southeast-1": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			},
-
-			"ap-southeast-2": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			},
-
-			"eu-central-1": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			},
-
-			"eu-west-1": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			},
-
-			"sa-east-1": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			},
-
-			"us-east-1": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			},
-
-			"us-east-2": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			},
-
-			"us-gov-west-1": {
-
-				"Partition": "aws-us-gov",
-
-				"reInventENT112URL": "https://s3-us-gov-west-1.amazonaws.com"
-
-			},
-
-			"us-west-1": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			},
-
-			"us-west-2": {
-
-				"Partition": "aws",
-
-				"reInventENT112URL": "https://s3.amazonaws.com"
-
-			}
-
-		}
-
-	},
-
-	"Resources": {
-
-		"SourceInstanceResources": {
-
-			"Type": "AWS::CloudFormation::Stack",
-
-			"Properties": {
-
-				"TemplateURL": {
-
-					"Fn::Join": [
-
-						"/", [{
-
-								"Fn::FindInMap": [
-
-									"AWSInfoRegionMap", {
-
-										"Ref": "AWS::Region"
-
-									},
-
-									"reInventENT112URL"
-
-								]
-
-							}, {
-
-								"Ref": "S3BucketName"
-
-							}, {
-
-								"Ref": "S3KeyPrefix"
-
-							},
-
-							"templates/reinvent-ent312-source-instances.yml"
-
-						]
-
-					]
-
-				},
-
-				"Parameters": {
-
-					"KeyPairName": {
-						"Ref": "KeyPairName"
-					},
-
-					"InstanceType": {
-						"Ref": "SourceInstancesType"
-					},
-
-					"SourcePublicSubnet1ID": {
-						"Fn::GetAtt": ["VPCStack", "Outputs.SourcePublicSubnet1ID"]
-					},
-
-					"SourcePublicSubnet2ID": {
-						"Fn::GetAtt": ["VPCStack", "Outputs.SourcePublicSubnet2ID"]
-					},
-
-					"SourceVPCID": {
-						"Fn::GetAtt": ["VPCStack", "Outputs.SourceVPCID"]
-					},
-
-					"DestVPCCIDR": {
-						"Fn::GetAtt": ["VPCStack", "Outputs.DestVPCCIDR"]
-					},
-
-					"CloudEndureSNSTopic": {
-						"Fn::GetAtt": ["CloudEndureLambdaStack", "Outputs.ENT312CloudEndureSNSTopic"]
-					},
-					"GogsDNS": {
-						"Ref": "GogsDNS"
-					},
-					"CloudEndureUser": {
-						"Ref": "CloudEndureUser"
-					},
-					"CloudEndurePassword": {
-						"Ref": "CloudEndurePassword"
-					},
-					"S3Bucket": {
-						"Ref": "S3BucketName"
-					},
-					"S3KeyName": {
-						"Ref": "S3KeyPrefix"
-					}
-				}
-
-			}
-
-		},
-
-		"DMSStacks": {
-
-			"Type": "AWS::CloudFormation::Stack",
-
-			"Properties": {
-
-				"TemplateURL": {
-
-					"Fn::Join": [
-
-						"/", [{
-
-								"Fn::FindInMap": [
-
-									"AWSInfoRegionMap", {
-
-										"Ref": "AWS::Region"
-
-									},
-
-									"reInventENT112URL"
-
-								]
-
-							}, {
-
-								"Ref": "S3BucketName"
-
-							}, {
-
-								"Ref": "S3KeyPrefix"
-
-							},
-
-							"templates/reinvent-ent312-lambda-dms-resource.yml"
-
-						]
-
-					]
-
-				},
-
-				"Parameters": {
-
-					"S3Bucket": {
-
-						"Ref": "S3BucketName"
-
-					},
-
-					"S3KeyName": {
-
-						"Ref": "S3KeyPrefix"
-
-					},
-
-					"ModuleName": {
-
-						"Ref": "ModuleName"
-
-					},
-
-					"DestinationPrivateSubnets": {
-
-						"Fn::Join": [",", [{
-
-							"Fn::GetAtt": ["VPCStack", "Outputs.DestPrivateSubnet1AID"]
-
-						}, {
-
-							"Fn::GetAtt": ["VPCStack", "Outputs.DestPrivateSubnet2AID"]
-
-						}]]
-
-					},
-
-					"DestinationPublicSubnets": {
-
-						"Fn::Join": [",", [{
-
-							"Fn::GetAtt": ["VPCStack", "Outputs.DestPublicSubnet1ID"]
-
-						}, {
-
-							"Fn::GetAtt": ["VPCStack", "Outputs.DestPublicSubnet2ID"]
-
-						}]]
-
-					},
-
-					"SourcePublicSubnets": {
-
-						"Fn::Join": [",", [{
-
-							"Fn::GetAtt": ["VPCStack", "Outputs.SourcePublicSubnet1ID"]
-
-						}, {
-
-							"Fn::GetAtt": ["VPCStack", "Outputs.SourcePublicSubnet2ID"]
-
-						}]]
-
-					},
-
-					"DMSReplciationInstanceClass": {
-
-						"Ref": "DMSReplciationInstanceClass"
-
-					},
-
-					"DBSourceEngine": {
-
-						"Ref": "DBSourceEngine"
-
-					},
-
-					"DBSourceServerName": {
-
-						"Fn::GetAtt": ["SourceInstanceResources", "Outputs.DatabaseSourceInstance"]
-
-					},
-
-					"DBSourcePort": {
-
-						"Ref": "DBSourcePort"
-
-					},
-
-					"DBSourceUsername": {
-
-						"Ref": "DBSourceUsername"
-
-					},
-
-					"DBSourcePassword": {
-
-						"Ref": "DBSourcePassword"
-
-					},
-
-					"DBTargetEngine": {
-
-						"Ref": "DBTargetEngine"
-
-					},
-
-					"DBTargetServerName": {
-
-						"Fn::GetAtt": ["RDSStack", "Outputs.Endpoint"]
-
-					},
-
-					"DBTargetPort": {
-
-						"Ref": "DBTargetPort"
-
-					},
-
-					"DBTargetUsername": {
-
-						"Ref": "DBTargetUsername"
-
-					},
-
-					"DBTargetPassword": {
-
-						"Ref": "DBTargetPassword"
-
-					},
-
-					"MigrationTable": {
-
-						"Ref": "MigrationTable"
-
-					}
-
-				}
-
-
-
-			}
-
-		},
-
-		"VPCStack": {
-
-			"Type": "AWS::CloudFormation::Stack",
-
-			"Properties": {
-
-				"TemplateURL": {
-
-					"Fn::Join": [
-
-						"/", [{
-
-								"Fn::FindInMap": [
-
-									"AWSInfoRegionMap", {
-
-										"Ref": "AWS::Region"
-
-									},
-
-									"reInventENT112URL"
-
-								]
-
-							}, {
-
-								"Ref": "S3BucketName"
-
-							}, {
-
-								"Ref": "S3KeyPrefix"
-
-							},
-
-							"templates/reinvent-ent312-vpc.template"
-
-						]
-
-					]
-
-				},
-
-				"Parameters": {
-
-					"AvailabilityZones": {
-
-						"Fn::Join": [
-
-							",", {
-
-								"Ref": "AvailabilityZones"
-
-							}
-
-						]
-
-					},
-
-					"KeyPairName": {
-
-						"Ref": "KeyPairName"
-
-					},
-
-					"NATInstanceType": {
-
-						"Ref": "NATInstanceType"
-
-					},
-
-					"NumberOfAZs": "2",
-
-					"DestPrivateSubnet1ACIDR": {
-
-						"Ref": "DestPrivateSubnet1ACIDR"
-
-					},
-
-					"DestPrivateSubnet1BCIDR": {
-
-						"Ref": "DestPrivateSubnet1BCIDR"
-
-					},
-
-					"DestPrivateSubnet2ACIDR": {
-
-						"Ref": "DestPrivateSubnet2ACIDR"
-
-					},
-
-					"DestPrivateSubnet2BCIDR": {
-
-						"Ref": "DestPrivateSubnet2BCIDR"
-
-					},
-
-					"DestPublicSubnet1CIDR": {
-
-						"Ref": "DestPublicSubnet1CIDR"
-
-					},
-
-					"DestPublicSubnet2CIDR": {
-
-						"Ref": "DestPublicSubnet2CIDR"
-
-					},
-
-					"DestVPCCIDR": {
-
-						"Ref": "DestVPCCIDR"
-
-					},
-
-					"SourcePublicSubnet1CIDR": {
-
-						"Ref": "SourcePublicSubnet1CIDR"
-
-					},
-
-					"SourcePublicSubnet2CIDR": {
-
-						"Ref": "SourcePublicSubnet2CIDR"
-
-					},
-
-					"SourceVPCCIDR": {
-
-						"Ref": "SourceVPCCIDR"
-
-					}
-
-				}
-
-			}
-
-		},
-
-		"RDSStack": {
-
-			"Type": "AWS::CloudFormation::Stack",
-
-			"Properties": {
-
-				"TemplateURL": {
-
-					"Fn::Join": [
-
-						"/", [{
-
-								"Fn::FindInMap": [
-
-									"AWSInfoRegionMap", {
-
-										"Ref": "AWS::Region"
-
-									},
-
-									"reInventENT112URL"
-
-								]
-
-							}, {
-
-								"Ref": "S3BucketName"
-
-							}, {
-
-								"Ref": "S3KeyPrefix"
-
-							},
-
-							"templates/reinvent-ent312-rds.template"
-
-						]
-
-					]
-
-				},
-
-				"Parameters": {
-
-					"VpcId": {
-
-						"Fn::Join": [",", [{
-
-							"Fn::GetAtt": ["VPCStack", "Outputs.DestVPCID"]
-
-						}]]
-
-					},
-
-					"Subnets": {
-
-						"Fn::Join": [",", [{
-
-							"Fn::GetAtt": ["VPCStack", "Outputs.DestPublicSubnet1ID"]
-
-						}, {
-
-							"Fn::GetAtt": ["VPCStack", "Outputs.DestPublicSubnet2ID"]
-
-						}]]
-
-					},
-
-					"AvailabilityZones": {
-
-						"Fn::Join": [
-
-							",", {
-
-								"Ref": "AvailabilityZones"
-
-							}
-
-						]
-
-					},
-
-					"DestVPCCIDR": {
-
-						"Ref": "DestVPCCIDR"
-
-					},
-
-					"SourceVPCCIDR": {
-
-						"Ref": "SourceVPCCIDR"
-
-					}
-
-				}
-
-			}
-
-		},
-
-		"CloudEndureLambdaStack": {
-
-			"Type": "AWS::CloudFormation::Stack",
-
-			"Properties": {
-
-				"TemplateURL": {
-
-					"Fn::Join": [
-
-						"/", [{
-
-								"Fn::FindInMap": [
-
-									"AWSInfoRegionMap", {
-
-										"Ref": "AWS::Region"
-
-									},
-
-									"reInventENT112URL"
-
-								]
-
-							}, {
-
-								"Ref": "S3BucketName"
-
-							}, {
-
-								"Ref": "S3KeyPrefix"
-
-							},
-
-							"templates/reinvent-ent312-cloudendure_lambda.template"
-
-						]
-
-					]
-
-				},
-
-				"Parameters": {
-
-					"S3BucketName": {
-
-						"Ref": "S3BucketName"
-
-					},
-
-					"S3Key": {
-
-						"Fn::Join": [
-
-							"/", [{
-
-									"Ref": "S3KeyPrefix"
-
-								},
-
-								"scripts/ent312democloudendurelambda.zip"
-
-							]
-
-						]
-
-					}
-
-				}
-
-			}
-
-		}
-
-	}
-
+{  
+   "AWSTemplateFormatVersion":"2010-09-09",
+   "Description":"This template deploys the infrastructure for the CloudEndure Blog Post / re:Invent ENT312 session. This template creates Amazon EC2 instances and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
+   "Metadata":{  
+      "AWS::CloudFormation::Interface":{  
+         "ParameterGroups":[  
+            {  
+               "Label":{  
+                  "default":"AWS CloudEndure Blog Post - reInvent ENT312 Configuration"
+               },
+               "Parameters":[  
+                  "S3BucketName",
+                  "S3KeyPrefix",
+                  "GogsDNS",
+                  "CloudEndureUser",
+                  "CloudEndurePassword",
+                  "DBSourceUsername",
+                  "DBSourcePassword",
+                  "DBSourceMysqlRootPassword",
+                  "DBTargetUsername",
+                  "DBTargetPassword"
+               ]
+            },
+            {  
+               "Label":{  
+                  "default":"Network Configuration"
+               },
+               "Parameters":[  
+                  "AvailabilityZones",
+                  "VPCCIDR",
+                  "PrivateSubnet1CIDR",
+                  "PrivateSubnet2CIDR",
+                  "PublicSubnet1CIDR",
+                  "PublicSubnet2CIDR"
+               ]
+            },
+            {  
+               "Label":{  
+                  "default":"Amazon EC2 Configuration"
+               },
+               "Parameters":[  
+                  "KeyPairName",
+                  "NATInstanceType"
+               ]
+            }
+         ],
+         "ParameterLabels":{  
+            "S3BucketName":{  
+               "default":"S3 Bucket Name"
+            },
+            "S3KeyPrefix":{  
+               "default":"S3 Key Prefix"
+            },
+            "GogsDNS":{  
+               "default":"Migrated Gogs DNS"
+            },
+            "CloudEndureUser":{  
+               "default":"CloudEndureUser"
+            },
+            "CloudEndurePassword":{  
+               "default":"CloudEndurePassword"
+            },
+            "DBSourceUsername":{  
+               "default":"Source Database Username"
+            },
+            "DBSourcePassword":{  
+               "default":"Source Database Password"
+            },
+            "DBSourceMysqlRootPassword":{  
+               "default":"Source MYSQL Database Root Password"
+            },
+            "DBTargetUsername":{  
+               "default":"Target Database Username"
+            },
+            "DBTargetPassword":{  
+               "default":"Target Database Password"
+            },
+            "AvailabilityZones":{  
+               "default":"Availability Zones"
+            },
+            "DestCreateAdditionalPrivateSubnets":{  
+               "default":"Create additional private subnets with dedicated network ACLs"
+            },
+            "KeyPairName":{  
+               "default":"Key pair name"
+            },
+            "NATInstanceType":{  
+               "default":"NAT instance type"
+            },
+            "NumberOfAZs":{  
+               "default":"Number of Availability Zones"
+            },
+            "SourcePublicSubnet1CIDR":{  
+               "default":"Source Public subnet 1 CIDR"
+            },
+            "SourcePublicSubnet2CIDR":{  
+               "default":"Source Public subnet 2 CIDR"
+            },
+            "SourceVPCCIDR":{  
+               "default":"Source VPC CIDR"
+            },
+            "DestPrivateSubnet1ACIDR":{  
+               "default":"Dest Private subnet 1A CIDR"
+            },
+            "DestPrivateSubnet1BCIDR":{  
+               "default":"Dest Private subnet 1B with dedicated network ACL CIDR"
+            },
+            "DestPrivateSubnet2ACIDR":{  
+               "default":"Dest Private subnet 2A CIDR"
+            },
+            "DestPrivateSubnet2BCIDR":{  
+               "default":"Dest Private subnet 2B with dedicated network ACL CIDR"
+            },
+            "DestPublicSubnet1CIDR":{  
+               "default":"Dest Public subnet 1 CIDR"
+            },
+            "DestPublicSubnet2CIDR":{  
+               "default":"Dest Public subnet 2 CIDR"
+            },
+            "DestVPCCIDR":{  
+               "default":"Dest VPC CIDR"
+            }
+         }
+      }
+   },
+   "Parameters":{  
+      "S3BucketName":{  
+         "AllowedPattern":"^[0-9a-zA-Z.]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$",
+         "ConstraintDescription":"bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+         "Default":"apnblog.awspartner.com",
+         "Description":"S3 bucket name for the assets - Only change this value if hosting the assets yourself. Bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+         "Type":"String"
+      },
+      "S3KeyPrefix":{  
+         "AllowedPattern":"^[0-9a-zA-Z-]+(/[0-9a-zA-Z-]+)*$",
+         "ConstraintDescription":"Key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with forward slash (/) because they are automatically appended.",
+         "Default":"FacilitatingAMigrationToAWSWithCloudEndureByLeveragingAutomation/latest",
+         "Description":"S3 key prefix for the Quick Start assets. Key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with forward slash (/) because they are automatically appended.",
+         "Type":"String"
+      },
+      "GogsDNS":{  
+         "Default":"ent312.five0.ninja",
+         "Description":"FQDN for Migrated Gogs Environment. Same value as gogsdns in config.yml",
+         "Type":"String"
+      },
+      "CloudEndureUser":{  
+         "Description":"Username for CloudEndure",
+         "Type":"String"
+      },
+      "CloudEndurePassword":{  
+         "Description":"Password for CloudEndure",
+         "Type":"String"
+      },
+      "AvailabilityZones":{  
+         "Description":"Only pick two - List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
+         "Type":"List<AWS::EC2::AvailabilityZone::Name>"
+      },
+      "DestCreateAdditionalPrivateSubnets":{  
+         "AllowedValues":[  
+            "true",
+            "false"
+         ],
+         "Default":"false",
+         "Description":"Set to true to create a network ACL protected subnet in each Availability Zone. If false, the CIDR parameters for those subnets will be ignored.",
+         "Type":"String"
+      },
+      "KeyPairName":{  
+         "Description":"You must create this first. Public/private key pairs allow you to securely connect to your NAT instance after it launches. This is used only if the region does not support NAT gateways.",
+         "Type":"AWS::EC2::KeyPair::KeyName"
+      },
+      "NATInstanceType":{  
+         "AllowedValues":[  
+            "t2.nano",
+            "t2.micro",
+            "t2.small",
+            "t2.medium",
+            "t2.large",
+            "m3.medium",
+            "m3.large",
+            "m4.large"
+         ],
+         "Default":"t2.small",
+         "Description":"Amazon EC2 instance type for the NAT instances. This is used only if the region does not support NAT gateways.",
+         "Type":"String"
+      },
+      "NumberOfAZs":{  
+         "AllowedValues":[  
+            "2"
+         ],
+         "Default":"2",
+         "Description":"Only pick two - Number of Availability Zones to use in the VPC. This must match your selections in the list of Availability Zones parameter.",
+         "Type":"String"
+      },
+      "DestPrivateSubnet1ACIDR":{  
+         "AllowedPattern":"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+         "Default":"10.0.0.0/19",
+         "Description":"CIDR block for private subnet 1A located in Availability Zone 1 in the Dest VPC.",
+         "Type":"String"
+      },
+      "DestPrivateSubnet1BCIDR":{  
+         "AllowedPattern":"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+         "Default":"10.0.192.0/21",
+         "Description":"CIDR block for private subnet 1B with dedicated network ACL located in Availability Zone 1 in the Dest VPC.",
+         "Type":"String"
+      },
+      "DestPrivateSubnet2ACIDR":{  
+         "AllowedPattern":"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+         "Default":"10.0.32.0/19",
+         "Description":"CIDR block for private subnet 2A located in Availability Zone 2 in the Dest VPC.",
+         "Type":"String"
+      },
+      "DestPrivateSubnet2BCIDR":{  
+         "AllowedPattern":"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+         "Default":"10.0.200.0/21",
+         "Description":"CIDR block for private subnet 2B with dedicated network ACL located in Availability Zone 2 in the Dest VPC.",
+         "Type":"String"
+      },
+      "DestPublicSubnet1CIDR":{  
+         "AllowedPattern":"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+         "Default":"10.0.128.0/20",
+         "Description":"CIDR block for the public DMZ subnet 1 located in Availability Zone 1 in the Dest VPC.",
+         "Type":"String"
+      },
+      "DestPublicSubnet2CIDR":{  
+         "AllowedPattern":"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+         "Default":"10.0.144.0/20",
+         "Description":"CIDR block for the public DMZ subnet 2 located in Availability Zone 2 in the Dest VPC.",
+         "Type":"String"
+      },
+      "DestVPCCIDR":{  
+         "AllowedPattern":"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+         "Default":"10.0.0.0/16",
+         "Description":"CIDR block for the Dest VPC",
+         "Type":"String"
+      },
+      "SourceVPCCIDR":{  
+         "AllowedPattern":"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+         "Default":"10.10.0.0/16",
+         "Description":"CIDR block for the Source VPC",
+         "Type":"String"
+      },
+      "SourcePublicSubnet1CIDR":{  
+         "AllowedPattern":"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+         "Default":"10.10.128.0/20",
+         "Description":"CIDR block for the public subnet 1 located in Availability Zone 1 in the Source VPC",
+         "Type":"String"
+      },
+      "SourcePublicSubnet2CIDR":{  
+         "AllowedPattern":"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+         "Default":"10.10.144.0/20",
+         "Description":"CIDR block for the public subnet 2 located in Availability Zone 2 in the Source VPC",
+         "Type":"String"
+      },
+      "ModuleName":{  
+         "Default":"lambda_dms",
+         "Type":"String",
+         "Description":"The name of the Module being invoked by Lambda for Custom DMS Resources."
+      },
+      "DMSReplciationInstanceClass":{  
+         "Default":"dms.t2.medium",
+         "Type":"String",
+         "Description":"Database Migration Service Replication Instance Type"
+      },
+      "DBTargetPort":{  
+         "Type":"String",
+         "Description":"Port for DMS Migration Target Database",
+         "Default":"3306"
+      },
+      "DBSourcePort":{  
+         "Type":"String",
+         "Description":"Port For DMS Migration Source Database",
+         "Default":"3306"
+      },
+      "MigrationTable":{  
+         "Type":"String",
+         "Description":"Database table to Migrate in DMS Migration",
+         "Default":"gogs"
+      },
+      "DBSourcePassword":{  
+         "Type":"String",
+         "Description":"Password for DMS Access to Source Database"
+      },
+      "DBTargetPassword":{  
+         "Type":"String",
+         "Description":"Password for DMS Access to Target Database"
+      },
+      "DBSourceUsername":{  
+         "Type":"String",
+         "Description":"Username for DMS Access to Source Database",
+         "Default":"ent312_demo"
+      },
+      "DBSourceMysqlRootPassword":{  
+         "Type":"String",
+         "Description":"Root Password for Source MYSQL Database"
+      },
+      "DBTargetEngine":{  
+         "Default":"mysql",
+         "Type":"String",
+         "Description":"Database Engine for Target Database"
+      },
+      "DBTargetUsername":{  
+         "Type":"String",
+         "Description":"Username for DMS Access to Target Database",
+         "Default":"ent312_demo"
+      },
+      "DBSourceEngine":{  
+         "Default":"mysql",
+         "Type":"String",
+         "Description":"Database Engine for Source Database"
+      },
+      "SourceInstancesType":{  
+         "Description":"Instance type for Source Instances.",
+         "Type":"String",
+         "Default":"t2.micro"
+      }
+   },
+   "Mappings":{  
+      "AWSInfoRegionMap":{  
+         "ap-northeast-1":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         },
+         "ap-northeast-2":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         },
+         "ap-south-1":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         },
+         "ap-southeast-1":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         },
+         "ap-southeast-2":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         },
+         "eu-central-1":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         },
+         "eu-west-1":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         },
+         "sa-east-1":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         },
+         "us-east-1":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         },
+         "us-east-2":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         },
+         "us-gov-west-1":{  
+            "Partition":"aws-us-gov",
+            "reInventENT112URL":"https://s3-us-gov-west-1.amazonaws.com"
+         },
+         "us-west-1":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         },
+         "us-west-2":{  
+            "Partition":"aws",
+            "reInventENT112URL":"https://s3.amazonaws.com"
+         }
+      }
+   },
+   "Resources":{  
+      "SourceInstanceResources":{  
+         "Type":"AWS::CloudFormation::Stack",
+         "Properties":{  
+            "TemplateURL":{  
+               "Fn::Join":[  
+                  "/",
+                  [  
+                     {  
+                        "Fn::FindInMap":[  
+                           "AWSInfoRegionMap",
+                           {  
+                              "Ref":"AWS::Region"
+                           },
+                           "reInventENT112URL"
+                        ]
+                     },
+                     {  
+                        "Ref":"S3BucketName"
+                     },
+                     {  
+                        "Ref":"S3KeyPrefix"
+                     },
+                     "templates/reinvent-ent312-source-instances.yml"
+                  ]
+               ]
+            },
+            "Parameters":{  
+               "KeyPairName":{  
+                  "Ref":"KeyPairName"
+               },
+               "InstanceType":{  
+                  "Ref":"SourceInstancesType"
+               },
+               "SourcePublicSubnet1ID":{  
+                  "Fn::GetAtt":[  
+                     "VPCStack",
+                     "Outputs.SourcePublicSubnet1ID"
+                  ]
+               },
+               "SourcePublicSubnet2ID":{  
+                  "Fn::GetAtt":[  
+                     "VPCStack",
+                     "Outputs.SourcePublicSubnet2ID"
+                  ]
+               },
+               "SourceVPCID":{  
+                  "Fn::GetAtt":[  
+                     "VPCStack",
+                     "Outputs.SourceVPCID"
+                  ]
+               },
+               "DestVPCCIDR":{  
+                  "Fn::GetAtt":[  
+                     "VPCStack",
+                     "Outputs.DestVPCCIDR"
+                  ]
+               },
+               "CloudEndureSNSTopic":{  
+                  "Fn::GetAtt":[  
+                     "CloudEndureLambdaStack",
+                     "Outputs.ENT312CloudEndureSNSTopic"
+                  ]
+               },
+               "GogsDNS":{  
+                  "Ref":"GogsDNS"
+               },
+               "CloudEndureUser":{  
+                  "Ref":"CloudEndureUser"
+               },
+               "CloudEndurePassword":{  
+                  "Ref":"CloudEndurePassword"
+               },
+               "S3Bucket":{  
+                  "Ref":"S3BucketName"
+               },
+               "S3KeyName":{  
+                  "Ref":"S3KeyPrefix"
+               },
+               "GogsDBPassword":{  
+                  "Ref":"DBSourcePassword"
+               },
+               "GogsDBUserName":{  
+                  "Ref":"DBSourceUsername"
+               },
+               "MysqlRootPassword":{  
+                  "Ref":"DBSourceMysqlRootPassword"
+               }
+            }
+         }
+      },
+      "DMSStacks":{  
+         "Type":"AWS::CloudFormation::Stack",
+         "Properties":{  
+            "TemplateURL":{  
+               "Fn::Join":[  
+                  "/",
+                  [  
+                     {  
+                        "Fn::FindInMap":[  
+                           "AWSInfoRegionMap",
+                           {  
+                              "Ref":"AWS::Region"
+                           },
+                           "reInventENT112URL"
+                        ]
+                     },
+                     {  
+                        "Ref":"S3BucketName"
+                     },
+                     {  
+                        "Ref":"S3KeyPrefix"
+                     },
+                     "templates/reinvent-ent312-lambda-dms-resource.yml"
+                  ]
+               ]
+            },
+            "Parameters":{  
+               "S3Bucket":{  
+                  "Ref":"S3BucketName"
+               },
+               "S3KeyName":{  
+                  "Ref":"S3KeyPrefix"
+               },
+               "ModuleName":{  
+                  "Ref":"ModuleName"
+               },
+               "DestinationPrivateSubnets":{  
+                  "Fn::Join":[  
+                     ",",
+                     [  
+                        {  
+                           "Fn::GetAtt":[  
+                              "VPCStack",
+                              "Outputs.DestPrivateSubnet1AID"
+                           ]
+                        },
+                        {  
+                           "Fn::GetAtt":[  
+                              "VPCStack",
+                              "Outputs.DestPrivateSubnet2AID"
+                           ]
+                        }
+                     ]
+                  ]
+               },
+               "DestinationPublicSubnets":{  
+                  "Fn::Join":[  
+                     ",",
+                     [  
+                        {  
+                           "Fn::GetAtt":[  
+                              "VPCStack",
+                              "Outputs.DestPublicSubnet1ID"
+                           ]
+                        },
+                        {  
+                           "Fn::GetAtt":[  
+                              "VPCStack",
+                              "Outputs.DestPublicSubnet2ID"
+                           ]
+                        }
+                     ]
+                  ]
+               },
+               "SourcePublicSubnets":{  
+                  "Fn::Join":[  
+                     ",",
+                     [  
+                        {  
+                           "Fn::GetAtt":[  
+                              "VPCStack",
+                              "Outputs.SourcePublicSubnet1ID"
+                           ]
+                        },
+                        {  
+                           "Fn::GetAtt":[  
+                              "VPCStack",
+                              "Outputs.SourcePublicSubnet2ID"
+                           ]
+                        }
+                     ]
+                  ]
+               },
+               "DMSReplciationInstanceClass":{  
+                  "Ref":"DMSReplciationInstanceClass"
+               },
+               "DBSourceEngine":{  
+                  "Ref":"DBSourceEngine"
+               },
+               "DBSourceServerName":{  
+                  "Fn::GetAtt":[  
+                     "SourceInstanceResources",
+                     "Outputs.DatabaseSourceInstance"
+                  ]
+               },
+               "DBSourcePort":{  
+                  "Ref":"DBSourcePort"
+               },
+               "DBSourceUsername":{  
+                  "Ref":"DBSourceUsername"
+               },
+               "DBSourcePassword":{  
+                  "Ref":"DBSourcePassword"
+               },
+               "DBTargetEngine":{  
+                  "Ref":"DBTargetEngine"
+               },
+               "DBTargetServerName":{  
+                  "Fn::GetAtt":[  
+                     "RDSStack",
+                     "Outputs.Endpoint"
+                  ]
+               },
+               "DBTargetPort":{  
+                  "Ref":"DBTargetPort"
+               },
+               "DBTargetUsername":{  
+                  "Ref":"DBTargetUsername"
+               },
+               "DBTargetPassword":{  
+                  "Ref":"DBTargetPassword"
+               },
+               "MigrationTable":{  
+                  "Ref":"MigrationTable"
+               }
+            }
+         }
+      },
+      "VPCStack":{  
+         "Type":"AWS::CloudFormation::Stack",
+         "Properties":{  
+            "TemplateURL":{  
+               "Fn::Join":[  
+                  "/",
+                  [  
+                     {  
+                        "Fn::FindInMap":[  
+                           "AWSInfoRegionMap",
+                           {  
+                              "Ref":"AWS::Region"
+                           },
+                           "reInventENT112URL"
+                        ]
+                     },
+                     {  
+                        "Ref":"S3BucketName"
+                     },
+                     {  
+                        "Ref":"S3KeyPrefix"
+                     },
+                     "templates/reinvent-ent312-vpc.template"
+                  ]
+               ]
+            },
+            "Parameters":{  
+               "AvailabilityZones":{  
+                  "Fn::Join":[  
+                     ",",
+                     {  
+                        "Ref":"AvailabilityZones"
+                     }
+                  ]
+               },
+               "KeyPairName":{  
+                  "Ref":"KeyPairName"
+               },
+               "NATInstanceType":{  
+                  "Ref":"NATInstanceType"
+               },
+               "NumberOfAZs":"2",
+               "DestPrivateSubnet1ACIDR":{  
+                  "Ref":"DestPrivateSubnet1ACIDR"
+               },
+               "DestPrivateSubnet1BCIDR":{  
+                  "Ref":"DestPrivateSubnet1BCIDR"
+               },
+               "DestPrivateSubnet2ACIDR":{  
+                  "Ref":"DestPrivateSubnet2ACIDR"
+               },
+               "DestPrivateSubnet2BCIDR":{  
+                  "Ref":"DestPrivateSubnet2BCIDR"
+               },
+               "DestPublicSubnet1CIDR":{  
+                  "Ref":"DestPublicSubnet1CIDR"
+               },
+               "DestPublicSubnet2CIDR":{  
+                  "Ref":"DestPublicSubnet2CIDR"
+               },
+               "DestVPCCIDR":{  
+                  "Ref":"DestVPCCIDR"
+               },
+               "SourcePublicSubnet1CIDR":{  
+                  "Ref":"SourcePublicSubnet1CIDR"
+               },
+               "SourcePublicSubnet2CIDR":{  
+                  "Ref":"SourcePublicSubnet2CIDR"
+               },
+               "SourceVPCCIDR":{  
+                  "Ref":"SourceVPCCIDR"
+               }
+            }
+         }
+      },
+      "RDSStack":{  
+         "Type":"AWS::CloudFormation::Stack",
+         "Properties":{  
+            "TemplateURL":{  
+               "Fn::Join":[  
+                  "/",
+                  [  
+                     {  
+                        "Fn::FindInMap":[  
+                           "AWSInfoRegionMap",
+                           {  
+                              "Ref":"AWS::Region"
+                           },
+                           "reInventENT112URL"
+                        ]
+                     },
+                     {  
+                        "Ref":"S3BucketName"
+                     },
+                     {  
+                        "Ref":"S3KeyPrefix"
+                     },
+                     "templates/reinvent-ent312-rds.template"
+                  ]
+               ]
+            },
+            "Parameters":{  
+               "VpcId":{  
+                  "Fn::Join":[  
+                     ",",
+                     [  
+                        {  
+                           "Fn::GetAtt":[  
+                              "VPCStack",
+                              "Outputs.DestVPCID"
+                           ]
+                        }
+                     ]
+                  ]
+               },
+               "Subnets":{  
+                  "Fn::Join":[  
+                     ",",
+                     [  
+                        {  
+                           "Fn::GetAtt":[  
+                              "VPCStack",
+                              "Outputs.DestPublicSubnet1ID"
+                           ]
+                        },
+                        {  
+                           "Fn::GetAtt":[  
+                              "VPCStack",
+                              "Outputs.DestPublicSubnet2ID"
+                           ]
+                        }
+                     ]
+                  ]
+               },
+               "AvailabilityZones":{  
+                  "Fn::Join":[  
+                     ",",
+                     {  
+                        "Ref":"AvailabilityZones"
+                     }
+                  ]
+               },
+               "DestVPCCIDR":{  
+                  "Ref":"DestVPCCIDR"
+               },
+               "SourceVPCCIDR":{  
+                  "Ref":"SourceVPCCIDR"
+               },
+               "DBUser":{  
+                  "Ref":"DBTargetUsername"
+               },
+               "DBPassword":{  
+                  "Ref":"DBTargetPassword"
+               }
+            }
+         }
+      },
+      "CloudEndureLambdaStack":{  
+         "Type":"AWS::CloudFormation::Stack",
+         "Properties":{  
+            "TemplateURL":{  
+               "Fn::Join":[  
+                  "/",
+                  [  
+                     {  
+                        "Fn::FindInMap":[  
+                           "AWSInfoRegionMap",
+                           {  
+                              "Ref":"AWS::Region"
+                           },
+                           "reInventENT112URL"
+                        ]
+                     },
+                     {  
+                        "Ref":"S3BucketName"
+                     },
+                     {  
+                        "Ref":"S3KeyPrefix"
+                     },
+                     "templates/reinvent-ent312-cloudendure_lambda.template"
+                  ]
+               ]
+            },
+            "Parameters":{  
+               "S3BucketName":{  
+                  "Ref":"S3BucketName"
+               },
+               "S3Key":{  
+                  "Fn::Join":[  
+                     "/",
+                     [  
+                        {  
+                           "Ref":"S3KeyPrefix"
+                        },
+                        "scripts/ent312democloudendurelambda.zip"
+                     ]
+                  ]
+               }
+            }
+         }
+      }
+   }
 }

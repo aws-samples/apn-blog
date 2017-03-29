@@ -44,12 +44,10 @@
 			"Default": "7"
 		},
 		"DBUser": {
-			"Type": "String",
-			"Default": "ent312_demo"
+			"Type": "String"
 		},
 		"DBPassword": {
-			"Type": "String",
-			"Default": "hv123!ZPPos!"
+			"Type": "String"
 		},
 		"DBName": {
 			"Type": "String",

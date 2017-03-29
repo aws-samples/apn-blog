@@ -36,7 +36,16 @@ Parameters:
     Description: S3 bucket name for the assets. 
   S3KeyName:
     Type: String
-    Description: S3 key prefix for the assets. 
+    Description: S3 key prefix for the assets.
+  GogsDBPassword:
+    Type: String
+    Description: Password for Gogs Database on DatabaseSourceInstance.
+  GogsDBUserName:
+    Type: String
+    Description: Username for Gogs Database on DatabaseSourceInstance.
+  MysqlRootPassword:
+    Type: String
+    Description: Root Password for MySQL Database on DatabaseSourceInstance.
 Mappings: 
   AMIRegionMap: 
     ap-south-1:
@@ -174,6 +183,12 @@ Resources:
                         sed -i 's/(database_server_hostname)/${DatabaseSourceInstance.PrivateDnsName}/' /home/centos/playbooks/hosts
                         sed -i 's/(gogs_server_hostname)/${GogsSourceInstance.PublicDnsName}/' /home/centos/playbooks/vars/gogs.yml
                         sed -i 's/(database_server_hostname)/${DatabaseSourceInstance.PrivateDnsName}/' /home/centos/playbooks/vars/gogs.yml
+                        sed -i 's/(database_server_password)/${GogsDBPassword}/' /home/centos/playbooks/hosts
+                        sed -i 's/(database_server_password)/${GogsDBPassword}/' /home/centos/playbooks/vars/gogs.yml
+                        sed -i 's/(database_server_password)/${GogsDBPassword}/' /home/centos/playbooks/vars/mysql.yml
+                        sed -i 's/(database_server_user)/${GogsDBUserName}/' /home/centos/playbooks/vars/gogs.yml
+                        sed -i 's/(database_server_user)/${GogsDBUserName}/' /home/centos/playbooks/vars/mysql.yml
+                        sed -i 's/(database_server_root_password)/${MysqlRootPassword}/' /home/centos/playbooks/vars/mysql.yml
                         yum update -y
                         yum install -y epel-release
                         yum install -y ansible
