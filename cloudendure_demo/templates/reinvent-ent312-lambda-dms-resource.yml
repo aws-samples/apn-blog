@@ -1,0 +1,203 @@
+Description: This template deploys the infrastructure for the re:Invent ENT312 session. This template creates Lambda Functions required for later execution of the DMS Cloudformation Implimentation
+Parameters:
+  S3Bucket:
+    Description: "This will be the bucket name which contains the source code for the Lambda Function"
+    Type: String
+  S3KeyName:
+    Description: "Location of AWS Lambda function Source Code"
+    Type: String
+  ModuleName:
+    Description: "The name of the NodeJS Module"
+    Type: String
+  DestinationPrivateSubnets:
+    Type: String
+    Description: The Private Subnets
+  DestinationPublicSubnets: 
+    Type: String
+    Description: Destination Public Subnets
+  SourcePublicSubnets:
+    Type: String
+    Description: Source Public Subnets
+  DMSReplciationInstanceClass:
+    Type: String
+    Description: Replication Instance Type
+    Default: dms.t2.medium
+  DBSourceEngine:
+    Type: String
+    Description: A Resource That needs to be defined
+  DBSourceServerName:
+    Type: String
+    Description: A Resource That needs to be defined
+  DBSourcePort:
+    Type: String
+    Description: A Resource That needs to be defined
+  DBSourceUsername:
+    Type: String
+    Description: A Resource That needs to be defined
+  DBSourcePassword:
+    Type: String
+    Description: A Resource That needs to be defined
+  DBTargetEngine:
+    Type: String
+    Description: A Resource That needs to be defined
+  DBTargetServerName:
+    Type: String
+    Description: A Resource That needs to be defined
+  DBTargetPort:
+    Type: String
+    Description: A Resource That needs to be defined
+  DBTargetUsername:
+    Type: String
+    Description: A Resource That needs to be defined
+  DBTargetPassword:
+    Type: String
+    Description: A Resource That needs to be defined
+  MigrationTable:
+    Type: String
+    Description: A Resource That needs to be defined
+Resources:
+  DMSExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - dms:*
+            - logs:*
+            Resource: "*"
+  DMScreateReplicationTaskFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Sub "${S3KeyName}/scripts/dms-lambda.zip"
+      Handler: !Sub "${ModuleName}.createReplicationTask"
+      Runtime: nodejs4.3
+      Timeout: 30
+      Role: !GetAtt DMSExecutionRole.Arn
+  DMSCreateReplicationSubnetGroupFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Sub "${S3KeyName}/scripts/dms-lambda.zip"
+      Handler: !Sub "${ModuleName}.createReplicationSubnetGroup"
+      Runtime: nodejs4.3
+      Timeout: 30
+      Role: !GetAtt DMSExecutionRole.Arn
+  DMScreateEndpointFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Sub "${S3KeyName}/scripts/dms-lambda.zip"
+      Handler: !Sub "${ModuleName}.createEndpoint"
+      Runtime: nodejs4.3
+      Timeout: 30
+      Role: !GetAtt DMSExecutionRole.Arn     
+  DMScreateReplicationInstanceFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Sub "${S3KeyName}/scripts/dms-lambda.zip"
+      Handler: !Sub "${ModuleName}.createReplicationInstance"
+      Runtime: nodejs4.3
+      Timeout: 30
+      Role: !GetAtt DMSExecutionRole.Arn
+  DMSMigrationTaskStartFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Sub "${S3KeyName}/scripts/dms-lambda.zip"
+      Handler: !Sub "${ModuleName}.startReplicationTask"
+      Runtime: nodejs4.3
+      Timeout: 30
+      Role: !GetAtt DMSExecutionRole.Arn
+  DMSreplicationInstanceWatcherFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Sub "${S3KeyName}/scripts/dms-lambda.zip"
+      Handler: !Sub "${ModuleName}.replicationInstanceWatcher"
+      Runtime: nodejs4.3
+      Timeout: 30
+      Role: !GetAtt DMSExecutionRole.Arn
+  DMSreplicationTaskWatcherFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Sub "${S3KeyName}/scripts/dms-lambda.zip"
+      Handler: !Sub "${ModuleName}.taskWatcher"
+      Runtime: nodejs4.3
+      Timeout: 30
+      Role: !GetAtt DMSExecutionRole.Arn
+  YFunctionStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3-us-west-2.amazonaws.com/${S3Bucket}/${S3KeyName}/templates/reinvent-ent312-lambda-dms-invoke.yml"
+      Parameters:
+        DestinationPrivateSubnets: !Ref DestinationPrivateSubnets
+        DestinationPublicSubnets: !Ref DestinationPublicSubnets
+        SourcePublicSubnets: !Ref SourcePublicSubnets
+        DMSCreateReplicationSubnetGroupFunctionARN: !GetAtt DMSCreateReplicationSubnetGroupFunction.Arn
+        DMSreplicationInstanceWatcherFunctionARN: !GetAtt DMSreplicationInstanceWatcherFunction.Arn
+        DMSReplciationInstanceClass: !Ref DMSReplciationInstanceClass
+        DMScreateReplicationInstanceFunctionARN: !GetAtt DMScreateReplicationInstanceFunction.Arn
+        DMScreateEndpointFunctionARN: !GetAtt DMScreateEndpointFunction.Arn
+        DMScreateReplicationTaskFunctionARN: !GetAtt DMScreateReplicationTaskFunction.Arn
+        DMSMigrationTaskStartFunctionARN: !GetAtt DMSMigrationTaskStartFunction.Arn
+        DMSreplicationTaskWatcherFunctionARN: !GetAtt DMSreplicationTaskWatcherFunction.Arn
+        DBSourceEngine: !Ref DBSourceEngine
+        DBSourceServerName: !Ref DBSourceServerName
+        DBSourcePort: !Ref DBSourcePort
+        DBSourceUsername: !Ref DBSourceUsername
+        DBSourcePassword: !Ref DBSourcePassword
+        DBTargetEngine: !Ref DBTargetEngine
+        DBTargetServerName: !Ref DBTargetServerName
+        DBTargetPort: !Ref DBTargetPort
+        DBTargetUsername: !Ref DBTargetUsername
+        DBTargetPassword: !Ref DBTargetPassword
+        MigrationTable: !Ref MigrationTable
+Outputs:
+  DMSreplicationInstanceWatcherFunctionARN:
+    Description: DMSreplicationInstanceWatcherFunction Amazon Resource Name
+    Value: !GetAtt DMSreplicationInstanceWatcherFunction.Arn
+  DMSCreateReplicationSubnetGroupFunctionARN:
+    Description: DMSCreateReplicationSubnetGroupFunction Amazon Resource Name
+    Value: !GetAtt DMSCreateReplicationSubnetGroupFunction.Arn
+  DMScreateReplicationTaskFunctionARN:
+    Description: DMScreateReplicationTaskFunction Amazon Resource Name
+    Value: !GetAtt DMScreateReplicationTaskFunction.Arn
+  DMScreateEndpointFunctionARN:
+    Description: DMScreateEndpointFunction Amazon Resource Name
+    Value: !GetAtt DMScreateEndpointFunction.Arn
+  DMScreateReplicationInstanceFunctionARN:
+    Description: DMScreateReplicationInstanceFunction Amazon Resource Name
+    Value: !GetAtt DMScreateReplicationInstanceFunction.Arn
+  DMSMigrationTaskStartFunctionARN:
+    Description: DMS Create Task Function Arn
+    Value: !GetAtt DMSMigrationTaskStartFunction.Arn
+  DMSreplicationInstanceWatcherFunctionARN:
+    Description: DMSreplicationInstanceWatcherFunction
+    Value: !GetAtt DMSreplicationInstanceWatcherFunction.Arn
+  DMSreplicationTaskWatcherFunctionARN:
+    Description: DMSreplicationTaskWatcherFunction
+    Value: !GetAtt DMSreplicationTaskWatcherFunction.Arn

@@ -1,0 +1,168 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+
+	"Description": "This template deploys the infrastructure for the re:Invent ENT312 session (Gogs - Autoscaling/ELB Post Migration). This template creates Amazon EC2 instances and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
+
+	"Parameters": {
+		"VPCStackName": {
+			"Description": "Name of an active CloudFormation stack that contains the networking/VPC resources, such as the subnet and security group, that will be used in this stack.",
+			"Type": "String",
+			"MinLength": 1,
+			"MaxLength": 255,
+			"AllowedPattern": "^[a-zA-Z][-a-zA-Z0-9]*$"
+		},
+		"InstanceType": {
+			"AllowedValues": [
+				"t2.micro",
+				"t2.small",
+				"t2.medium",
+				"t2.large"
+			],
+			"Default": "t2.large",
+			"Description": "Amazon EC2 instance type for the Gogs AutoScaling Instances",
+			"Type": "String"
+		},
+		"KeyPairName": {
+			"Description": "Public/private key pair",
+			"Type": "AWS::EC2::KeyPair::KeyName"
+		},
+		"AMIID": {
+			"Type": "String"
+		},
+		"GogsDNSName": {
+			"Description": "Route53 Domain Alias that your want to point your ELB for Gogs AutoScaling",
+			"Type": "String",
+			"Default": "ent312.five0.ninja"
+		}
+	},
+
+	"Mappings": {
+		"AWSRegionArch2AMI": {
+			"us-west-1": {
+				"HVM64": "ami-adc03bcd"
+			}
+		}
+	},
+
+	"Resources": {
+		"GogsELB": {
+			"Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+			"Properties": {
+				"CrossZone": "true",
+				"HealthCheck": {
+					"Target": "HTTP:3000/",
+					"HealthyThreshold": "10",
+					"UnhealthyThreshold": "2",
+					"Interval": "30",
+					"Timeout": "5"
+				},
+				"LoadBalancerName": "GogsELB",
+				"Listeners": [{
+					"LoadBalancerPort": "80",
+					"InstancePort": "3000",
+					"Protocol": "HTTP",
+					"PolicyNames": ["GogsELBStickyPolicy"]
+				}],
+				"Subnets": [
+				{"Fn::ImportValue": {"Fn::Sub": "${VPCStackName}-DestPublicSubnet1ID"}},
+				{"Fn::ImportValue": {"Fn::Sub": "${VPCStackName}-DestPublicSubnet2ID"}}
+				],
+				"Scheme": "internet-facing",
+				"SecurityGroups": [{
+					"Fn::ImportValue": {
+						"Fn::Sub": "${VPCStackName}-ENT312DemoDestELBSecurityGroupID"
+					}
+				}],
+				"LBCookieStickinessPolicy": [{
+					"PolicyName": "GogsELBStickyPolicy",
+					"CookieExpirationPeriod": "300"
+				}],
+				"Tags": [{
+					"Key": "Name",
+					"Value": "GogsELB"
+				}]
+			}
+		},
+		"GogsLaunchConfiguration": {
+			"Type": "AWS::AutoScaling::LaunchConfiguration",
+			"Properties": {
+				"AssociatePublicIpAddress": "true",
+				"ImageId": {
+					"Ref": "AMIID"
+				},
+				"InstanceType": {
+					"Ref": "InstanceType"
+				},
+				"KeyName": {
+					"Ref": "KeyPairName"
+				},
+				"SecurityGroups": [{
+					"Fn::ImportValue": {
+						"Fn::Sub": "${VPCStackName}-ENT312DemoDestInstanceSecurityGroupID"
+					}
+				}]
+
+			}
+		},
+		"GogsAutoscaleGroup": {
+			"Type": "AWS::AutoScaling::AutoScalingGroup",
+			"Properties": {
+				"Cooldown": "300",
+				"MaxSize": "2",
+				"MinSize": "2",
+				"DesiredCapacity": "2",
+				"HealthCheckGracePeriod": "300",
+				"HealthCheckType": "EC2",
+				"VPCZoneIdentifier": [{"Fn::Join" : [ "," , [
+				{"Fn::ImportValue": {"Fn::Sub": "${VPCStackName}-DestPublicSubnet1ID"}},
+				{"Fn::ImportValue": {"Fn::Sub": "${VPCStackName}-DestPublicSubnet2ID"}}
+				]]}],
+				"LaunchConfigurationName": {
+					"Ref": "GogsLaunchConfiguration"
+				},
+				"LoadBalancerNames": [{
+					"Ref": "GogsELB"
+				}],
+				"Tags": [{
+					"Key": "Name",
+					"Value": "GogsAutoScaling",
+					"PropagateAtLaunch": true
+				}]
+			}
+		},
+		"GogsRoute53Alias": {
+			"Type": "AWS::Route53::RecordSet",
+			"Properties": {
+				"Name": {"Fn::Join": ["", [{"Ref": "GogsDNSName"},"."]]},
+				"HostedZoneName": {"Fn::Join": ["", [{"Ref": "GogsDNSName"},"."]]},
+				"Type": "A",
+				"AliasTarget": {
+					"DNSName": {
+						"Fn::GetAtt": [
+							"GogsELB",
+							"DNSName"
+						]
+					},
+					"HostedZoneId": {
+						"Fn::GetAtt": [
+							"GogsELB",
+							"CanonicalHostedZoneNameID"
+						]
+					}
+				}
+			}
+		}
+	},
+
+	"Outputs": {
+		"GogsELBDNSName": {
+			"Value": {
+				"Fn::GetAtt": [
+					"GogsELB",
+					"DNSName"
+				]
+			},
+			"Description": "Public DNS Name for the GogsELB"
+		}
+	}
+}

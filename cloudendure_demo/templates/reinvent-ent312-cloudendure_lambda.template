@@ -1,0 +1,149 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "This template deploys the infrastructure for the re:Invent ENT312 session. This template creates Amazon EC2 instances and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
+	"Parameters": {
+		"S3BucketName": {
+			"Description": "S3 bucket name for the assets. Bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
+			"Type": "String"
+		},
+		"S3Key": {
+			"Description": "S3 key prefix for the assets. Key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/). It cannot start or end with forward slash (/) because they are automatically appended.",
+			"Type": "String"
+		}
+	},
+	"Resources": {
+		"ENT312DemoExecutionRole": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": [{
+						"Effect": "Allow",
+						"Principal": {
+							"Service": ["lambda.amazonaws.com"]
+						},
+						"Action": ["sts:AssumeRole"]
+					}]
+				},
+				"Path": "/"
+			}
+		},
+		"ENT312DemoExecutionPolicy": {
+			"Type": "AWS::IAM::Policy",
+			"Properties": {
+				"PolicyName": "ENT312DemoExecutionPolicy",
+				"Roles": [{
+					"Ref": "ENT312DemoExecutionRole"
+				}],
+				"PolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": [{
+						"Effect": "Allow",
+						"Action": [
+							"logs:CreateLogGroup",
+							"logs:CreateLogStream",
+							"logs:PutLogEvents"
+						],
+						"Resource": "arn:aws:logs:*:*:*"
+					}, {
+						"Effect": "Allow",
+						"Action": [
+							"ec2:CreateImage",
+							"ec2:CreateTags",
+							"ec2:Describe*",
+							"ec2:RegisterImage"
+						],
+						"Resource": "*"
+					}, {
+						"Action": [
+							"sqs:*"
+						],
+						"Resource": "*",
+						"Effect": "Allow"
+					}]
+				}
+			}
+		},
+		"ENT312DemoCloudEndureLambda": {
+			"Type": "AWS::Lambda::Function",
+
+			"Properties": {
+				"Code": {
+					"S3Bucket": {
+						"Ref": "S3BucketName"
+					},
+					"S3Key": {
+						"Ref": "S3Key"
+					}
+				},
+				"Environment": {
+					"Variables": {
+						"QueueURL": {
+							"Ref": "ENT312CloudEndureSQSQueue"
+						}
+					}
+				},
+				"Role": {
+					"Fn::GetAtt": ["ENT312DemoExecutionRole", "Arn"]
+				},
+				"Timeout": 60,
+				"Handler": "lambda_function.lambda_handler",
+				"Runtime": "python2.7",
+				"MemorySize": 128
+			}
+		},
+		"ENT312CloudEndureSNSTopic": {
+			"Type": "AWS::SNS::Topic",
+			"Properties": {
+				"DisplayName": "ENT312CloudEndureSNSTopic",
+				"TopicName": "ENT312CloudEndureSNSTopic",
+				"Subscription": [{
+					"Endpoint": {
+						"Fn::GetAtt": ["ENT312DemoCloudEndureLambda", "Arn"]
+					},
+					"Protocol": "lambda"
+				}]
+			}
+		},
+		"ENT312DemoCloudEndureLambdaPermission": {
+			"Type": "AWS::Lambda::Permission",
+			"Properties": {
+				"Action": "lambda:InvokeFunction",
+				"FunctionName": {
+					"Fn::GetAtt": ["ENT312DemoCloudEndureLambda", "Arn"]
+				},
+				"Principal": "sns.amazonaws.com",
+				"SourceArn": {
+					"Ref": "ENT312CloudEndureSNSTopic"
+				}
+			}
+		},
+		"ENT312CloudEndureSQSQueue": {
+			"Type": "AWS::SQS::Queue",
+			"Properties": {
+				"VisibilityTimeout": "30",
+				"QueueName": "ENT312CloudEndureSQSQueue"
+			}
+		}
+	},
+	"Outputs": {
+		"ENT312CloudEndureSNSTopic": {
+			"Description": "ARN of SNS Topic",
+			"Value": {
+				"Ref": "ENT312CloudEndureSNSTopic"
+			}
+		},
+		"ENT312DemoCloudEndureLambda": {
+			"Description": "ARN of Lambda Function",
+			"Value": {
+				"Fn::GetAtt": ["ENT312DemoCloudEndureLambda", "Arn"]
+			}
+		},
+		"ENT312CloudEndureSQSQueue": {
+			"Description": "SQS Queue URL",
+			"Value": {
+				"Ref": "ENT312CloudEndureSQSQueue"
+			}
+		}
+	}
+}

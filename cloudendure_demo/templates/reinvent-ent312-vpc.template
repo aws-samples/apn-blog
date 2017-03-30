@@ -1,0 +1,1821 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "This template creates a Multi-AZ, multi-subnet VPC infrastructure with managed NAT gateways in the public subnet for each Availability Zone. You can also create additional private subnets with dedicated custom network access control lists (ACLs). If you deploy the Quick Start in a region that doesn’t support NAT gateways, NAT instances are deployed instead. **WARNING** This template creates AWS resources. You will be billed for the AWS resources used if you create a stack from this template. QS(0027)",
+	"Metadata": {
+		"AWS::CloudFormation::Interface": {
+			"ParameterGroups": [{
+				"Label": {
+					"default": "Availability Zone Configuration"
+				},
+				"Parameters": [
+					"AvailabilityZones",
+					"NumberOfAZs"
+				]
+			}, {
+				"Label": {
+					"default": "Network Configuration"
+				},
+				"Parameters": [
+					"SourceVPCCIDR",
+					"SourcePublicSubnet1CIDR",
+					"SourcePublicSubnet2CIDR",
+					"DestVPCCIDR",
+					"DestPrivateSubnet1ACIDR",
+					"DestPrivateSubnet2ACIDR",
+					"DestPublicSubnet1CIDR",
+					"DestPublicSubnet2CIDR",
+					"DestCreateAdditionalPrivateSubnets",
+					"DestPrivateSubnet1BCIDR",
+					"DestPrivateSubnet2BCIDR"
+				]
+			}, {
+				"Label": {
+					"default": "Amazon EC2 Configuration"
+				},
+				"Parameters": [
+					"KeyPairName",
+					"NATInstanceType"
+				]
+			}],
+			"ParameterLabels": {
+				"AvailabilityZones": {
+					"default": "Availability Zones"
+				},
+				"DestCreateAdditionalPrivateSubnets": {
+					"default": "Create additional private subnets with dedicated network ACLs"
+				},
+				"KeyPairName": {
+					"default": "Key pair name"
+				},
+				"NATInstanceType": {
+					"default": "NAT instance type"
+				},
+				"NumberOfAZs": {
+					"default": "Number of Availability Zones"
+				},
+				"SourcePublicSubnet1CIDR": {
+					"default": "Source Public subnet 1 CIDR"
+				},
+				"SourcePublicSubnet2CIDR": {
+					"default": "Source Public subnet 2 CIDR"
+				},
+				"SourceVPCCIDR": {
+					"default": "Source VPC CIDR"
+				},
+				"DestPrivateSubnet1ACIDR": {
+					"default": "Dest Private subnet 1A CIDR"
+				},
+				"DestPrivateSubnet1BCIDR": {
+					"default": "Dest Private subnet 1B with dedicated network ACL CIDR"
+				},
+				"DestPrivateSubnet2ACIDR": {
+					"default": "Dest Private subnet 2A CIDR"
+				},
+				"DestPrivateSubnet2BCIDR": {
+					"default": "Dest Private subnet 2B with dedicated network ACL CIDR"
+				},
+				"DestPublicSubnet1CIDR": {
+					"default": "Dest Public subnet 1 CIDR"
+				},
+				"DestPublicSubnet2CIDR": {
+					"default": "Dest Public subnet 2 CIDR"
+				},
+				"DestVPCCIDR": {
+					"default": "Dest VPC CIDR"
+				}
+			}
+		}
+	},
+	"Parameters": {
+		"EnvironmentType": {
+			"Type": "String",
+			"Default": "ent312demo"
+		},
+		"AvailabilityZones": {
+			"Description": "List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
+			"Type": "List<AWS::EC2::AvailabilityZone::Name>"
+		},
+		"DestCreateAdditionalPrivateSubnets": {
+			"AllowedValues": [
+				"true",
+				"false"
+			],
+			"Default": "false",
+			"Description": "Set to true to create a network ACL protected subnet in each Availability Zone. If false, the CIDR parameters for those subnets will be ignored.",
+			"Type": "String"
+		},
+		"KeyPairName": {
+			"Description": "Public/private key pairs allow you to securely connect to your NAT instance after it launches. This is used only if the region does not support NAT gateways.",
+			"Type": "AWS::EC2::KeyPair::KeyName"
+		},
+		"NATInstanceType": {
+			"AllowedValues": [
+				"t2.nano",
+				"t2.micro",
+				"t2.small",
+				"t2.medium",
+				"t2.large",
+				"m3.medium",
+				"m3.large",
+				"m4.large"
+			],
+			"Default": "t2.small",
+			"Description": "Amazon EC2 instance type for the NAT instances. This is used only if the region does not support NAT gateways.",
+			"Type": "String"
+		},
+		"NumberOfAZs": {
+			"AllowedValues": [
+				"2"
+			],
+			"Default": "2",
+			"Description": "Number of Availability Zones to use in the VPC. This must match your selections in the list of Availability Zones parameter.",
+			"Type": "String"
+		},
+		"DestPrivateSubnet1ACIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.0.0.0/19",
+			"Description": "CIDR block for private subnet 1A located in Availability Zone 1 in the Dest VPC.",
+			"Type": "String"
+		},
+		"DestPrivateSubnet1BCIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.0.192.0/21",
+			"Description": "CIDR block for private subnet 1B with dedicated network ACL located in Availability Zone 1 in the Dest VPC.",
+			"Type": "String"
+		},
+		"DestPrivateSubnet2ACIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.0.32.0/19",
+			"Description": "CIDR block for private subnet 2A located in Availability Zone 2 in the Dest VPC.",
+			"Type": "String"
+		},
+		"DestPrivateSubnet2BCIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.0.200.0/21",
+			"Description": "CIDR block for private subnet 2B with dedicated network ACL located in Availability Zone 2 in the Dest VPC.",
+			"Type": "String"
+		},
+		"DestPublicSubnet1CIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.0.128.0/20",
+			"Description": "CIDR block for the public DMZ subnet 1 located in Availability Zone 1 in the Dest VPC.",
+			"Type": "String"
+		},
+		"DestPublicSubnet2CIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.0.144.0/20",
+			"Description": "CIDR block for the public DMZ subnet 2 located in Availability Zone 2 in the Dest VPC.",
+			"Type": "String"
+		},
+		"DestVPCCIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.0.0.0/16",
+			"Description": "CIDR block for the Dest VPC",
+			"Type": "String"
+		},
+		"SourceVPCCIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.10.0.0/16",
+			"Description": "CIDR block for the Source VPC",
+			"Type": "String"
+		},
+		"SourcePublicSubnet1CIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.10.128.0/20",
+			"Description": "CIDR block for the public subnet 1 located in Availability Zone 1 in the Source VPC",
+			"Type": "String"
+		},
+		"SourcePublicSubnet2CIDR": {
+			"AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+			"Default": "10.10.144.0/20",
+			"Description": "CIDR block for the public subnet 2 located in Availability Zone 2 in the Source VPC",
+			"Type": "String"
+		}
+	},
+	"Mappings": {
+		"AWSAMIRegionMap": {
+			"AMI": {
+				"AWSNAT": "amzn-ami-vpc-nat-hvm-2016.03.3.x86_64-ebs"
+			},
+			"ap-northeast-1": {
+				"AWSNAT": "ami-2443b745"
+			},
+			"ap-northeast-2": {
+				"AWSNAT": "ami-d14388bf"
+			},
+			"ap-south-1": {
+				"AWSNAT": "ami-e2b9d38d"
+			},
+			"ap-southeast-1": {
+				"AWSNAT": "ami-a79b49c4"
+			},
+			"ap-southeast-2": {
+				"AWSNAT": "ami-53371f30"
+			},
+			"eu-central-1": {
+				"AWSNAT": "ami-5825cd37"
+			},
+			"eu-west-1": {
+				"AWSNAT": "ami-a8dd45db"
+			},
+			"sa-east-1": {
+				"AWSNAT": "ami-9336bcff"
+			},
+			"us-east-1": {
+				"AWSNAT": "ami-4868ab25"
+			},
+			"us-east-2": {
+				"AWSNAT": " ami-8d5a00e8"
+			},
+			"us-west-1": {
+				"AWSNAT": "ami-004b0f60"
+			},
+			"us-west-2": {
+				"AWSNAT": "ami-a275b1c2"
+			}
+		}
+	},
+	"Conditions": {
+		"DestAdditionalPrivateSubnetsCondition": {
+			"Fn::Equals": [{
+					"Ref": "DestCreateAdditionalPrivateSubnets"
+				},
+				"true"
+			]
+		},
+		"DestNATInstanceCondition": {
+			"Fn::Or": [{
+				"Fn::Equals": [{
+						"Ref": "AWS::Region"
+					},
+					"sa-east-1"
+				]
+			}, {
+				"Fn::Equals": [{
+						"Ref": "AWS::Region"
+					},
+					"us-gov-west-1"
+				]
+			}, {
+				"Fn::Equals": [{
+						"Ref": "AWS::Region"
+					},
+					"cn-north-1"
+				]
+			}]
+		},
+		"DestNATGatewayCondition": {
+			"Fn::Not": [{
+				"Condition": "DestNATInstanceCondition"
+			}]
+		},
+		"DestVPCEndpointCondition": {
+			"Fn::Not": [{
+				"Fn::Or": [{
+					"Fn::Equals": [{
+							"Ref": "AWS::Region"
+						},
+						"us-gov-west-1"
+					]
+				}, {
+					"Fn::Equals": [{
+							"Ref": "AWS::Region"
+						},
+						"cn-north-1"
+					]
+				}]
+			}]
+		}
+	},
+	"Resources": {
+		"SourceVPC": {
+			"Type": "AWS::EC2::VPC",
+			"Properties": {
+				"CidrBlock": {
+					"Ref": "SourceVPCCIDR"
+				},
+				"EnableDnsHostnames": "true",
+				"Tags": [{
+					"Key": "Name",
+					"Value": "SourceVPC"
+				}, {
+					"Key": "Environment",
+					"Value": "Source"
+				}]
+			}
+		},
+		"SourcePublicSubnet1": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"VpcId": {
+					"Ref": "SourceVPC"
+				},
+				"CidrBlock": {
+					"Ref": "SourcePublicSubnet1CIDR"
+				},
+				"AvailabilityZone": {
+					"Fn::Select": [
+						0, {
+							"Fn::GetAZs": ""
+						}
+					]
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Source-Public-Subnet-1"
+				}, {
+					"Key": "Environment",
+					"Value": "Source"
+				}, {
+					"Key": "Role",
+					"Value": "Public Subnet 1"
+				}],
+				"MapPublicIpOnLaunch": true
+			}
+		},
+		"SourcePublicSubnet2": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"VpcId": {
+					"Ref": "SourceVPC"
+				},
+				"CidrBlock": {
+					"Ref": "SourcePublicSubnet2CIDR"
+				},
+				"AvailabilityZone": {
+					"Fn::Select": [
+						1, {
+							"Fn::GetAZs": ""
+						}
+					]
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Source-Public-Subnet-2"
+				}, {
+					"Key": "Environment",
+					"Value": "Source"
+				}, {
+					"Key": "Role",
+					"Value": "Public Subnet 2"
+				}],
+				"MapPublicIpOnLaunch": true
+			}
+		},
+		"SourceInternetGateway": {
+			"Type": "AWS::EC2::InternetGateway",
+			"Properties": {
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Fn::Join": ["", ["Source-", {
+							"Ref": "AWS::Region"
+						}, "-igw"]]
+					}
+				}, {
+					"Key": "Environment",
+					"Value": "Source"
+				}, {
+					"Key": "Network",
+					"Value": "Public"
+				}]
+			}
+		},
+		"SourceAttachGateway": {
+			"Type": "AWS::EC2::VPCGatewayAttachment",
+			"Properties": {
+				"VpcId": {
+					"Ref": "SourceVPC"
+				},
+				"InternetGatewayId": {
+					"Ref": "SourceInternetGateway"
+				}
+			}
+		},
+		"SourcePublicSubnetRoute": {
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "SourcePublicSubnetRouteTable"
+				},
+				"DestinationCidrBlock": "0.0.0.0/0",
+				"GatewayId": {
+					"Ref": "SourceInternetGateway"
+				}
+			}
+		},
+		"SourcePublicSubnetRouteTable": {
+			"Type": "AWS::EC2::RouteTable",
+			"Properties": {
+				"VpcId": {
+					"Ref": "SourceVPC"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Source-Public-Route-Table"
+				}, {
+					"Key": "Environment",
+					"Value": "Source"
+				}]
+			}
+		},
+		"SourcePublicSubnet1RouteTableAssociation": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "SourcePublicSubnet1"
+				},
+				"RouteTableId": {
+					"Ref": "SourcePublicSubnetRouteTable"
+				}
+			}
+		},
+		"SourcePublicSubnet2RouteTableAssociation": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "SourcePublicSubnet2"
+				},
+				"RouteTableId": {
+					"Ref": "SourcePublicSubnetRouteTable"
+				}
+			}
+		},
+		"DHCPOptions": {
+			"Type": "AWS::EC2::DHCPOptions",
+			"Properties": {
+				"DomainNameServers": [
+					"AmazonProvidedDNS"
+				]
+			}
+		},
+		"DestVPC": {
+			"Type": "AWS::EC2::VPC",
+			"Properties": {
+				"CidrBlock": {
+					"Ref": "DestVPCCIDR"
+				},
+				"EnableDnsSupport": "true",
+				"EnableDnsHostnames": "true",
+				"Tags": [{
+					"Key": "Name",
+					"Value": "DestVPC"
+				}, {
+					"Key": "Environment",
+					"Value": "Dest"
+				}]
+			}
+		},
+		"DestVPCDHCPOptionsAssociation": {
+			"Type": "AWS::EC2::VPCDHCPOptionsAssociation",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"DhcpOptionsId": {
+					"Ref": "DHCPOptions"
+				}
+			}
+		},
+		"DestInternetGateway": {
+			"Type": "AWS::EC2::InternetGateway",
+			"Properties": {
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Fn::Join": ["", ["Dest-", {
+							"Ref": "AWS::Region"
+						}, "-igw"]]
+					}
+				}, {
+					"Key": "Environment",
+					"Value": "Dest"
+				}, {
+					"Key": "Network",
+					"Value": "Public"
+				}]
+			}
+		},
+		"DestVPCGatewayAttachment": {
+			"Type": "AWS::EC2::VPCGatewayAttachment",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"InternetGatewayId": {
+					"Ref": "DestInternetGateway"
+				}
+			}
+		},
+		"DestPrivateSubnet1A": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"CidrBlock": {
+					"Ref": "DestPrivateSubnet1ACIDR"
+				},
+				"AvailabilityZone": {
+					"Fn::Select": [
+						"0", {
+							"Ref": "AvailabilityZones"
+						}
+					]
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Dest-Private-Subnet-1A"
+				}, {
+					"Key": "Network",
+					"Value": "Private"
+				}]
+			}
+		},
+		"DestPrivateSubnet1B": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"CidrBlock": {
+					"Ref": "DestPrivateSubnet1BCIDR"
+				},
+				"AvailabilityZone": {
+					"Fn::Select": [
+						"0", {
+							"Ref": "AvailabilityZones"
+						}
+					]
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Dest-Private-Subnet-1B"
+				}, {
+					"Key": "Network",
+					"Value": "Private"
+				}]
+			}
+		},
+		"DestPrivateSubnet2A": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"CidrBlock": {
+					"Ref": "DestPrivateSubnet2ACIDR"
+				},
+				"AvailabilityZone": {
+					"Fn::Select": [
+						"1", {
+							"Ref": "AvailabilityZones"
+						}
+					]
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Dest-Private-Subnet-2A"
+				}, {
+					"Key": "Network",
+					"Value": "Private"
+				}]
+			}
+		},
+		"DestPrivateSubnet2B": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"CidrBlock": {
+					"Ref": "DestPrivateSubnet2BCIDR"
+				},
+				"AvailabilityZone": {
+					"Fn::Select": [
+						"1", {
+							"Ref": "AvailabilityZones"
+						}
+					]
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Dest-Private-Subnet-2B"
+				}, {
+					"Key": "Network",
+					"Value": "Private"
+				}]
+			}
+		},
+		"DestPublicSubnet1": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"CidrBlock": {
+					"Ref": "DestPublicSubnet1CIDR"
+				},
+				"AvailabilityZone": {
+					"Fn::Select": [
+						"0", {
+							"Ref": "AvailabilityZones"
+						}
+					]
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Dest-Public-Subnet-1"
+				}, {
+					"Key": "Network",
+					"Value": "Public"
+				}],
+				"MapPublicIpOnLaunch": true
+			}
+		},
+		"DestPublicSubnet2": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"CidrBlock": {
+					"Ref": "DestPublicSubnet2CIDR"
+				},
+				"AvailabilityZone": {
+					"Fn::Select": [
+						"1", {
+							"Ref": "AvailabilityZones"
+						}
+					]
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Dest-Public-Subnet-2"
+				}, {
+					"Key": "Network",
+					"Value": "Public"
+				}],
+				"MapPublicIpOnLaunch": true
+			}
+		},
+		"DestPrivateSubnet1ARouteTable": {
+			"Type": "AWS::EC2::RouteTable",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Dest-Private-Subnet-1A-Route-Table"
+				}, {
+					"Key": "Network",
+					"Value": "Private"
+				}]
+			}
+		},
+		"DestPrivateSubnet1ARoute": {
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet1ARouteTable"
+				},
+				"DestinationCidrBlock": "0.0.0.0/0",
+				"InstanceId": {
+					"Fn::If": [
+						"DestNATInstanceCondition", {
+							"Ref": "DestNatInstance1"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				},
+				"NatGatewayId": {
+					"Fn::If": [
+						"DestNATGatewayCondition", {
+							"Ref": "DestNATGateway1"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				}
+			}
+		},
+		"DestPrivateSubnet1ARouteTableAssociation": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "DestPrivateSubnet1A"
+				},
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet1ARouteTable"
+				}
+			}
+		},
+		"DestPrivateSubnet2ARouteTable": {
+			"Type": "AWS::EC2::RouteTable",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Dest-Private-Subnet-2A-Route-Table"
+				}, {
+					"Key": "Network",
+					"Value": "Private"
+				}]
+			}
+		},
+		"DestPrivateSubnet2ARoute": {
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet2ARouteTable"
+				},
+				"DestinationCidrBlock": "0.0.0.0/0",
+				"InstanceId": {
+					"Fn::If": [
+						"DestNATInstanceCondition", {
+							"Ref": "DestNatInstance2"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				},
+				"NatGatewayId": {
+					"Fn::If": [
+						"DestNATGatewayCondition", {
+							"Ref": "DestNATGateway2"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				}
+			}
+		},
+		"DestPrivateSubnet2ARouteTableAssociation": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "DestPrivateSubnet2A"
+				},
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet2ARouteTable"
+				}
+			}
+		},
+		"DestPrivateSubnet1BRouteTable": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::RouteTable",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Dest-Private-Subnet-1B-Route-Table"
+				}, {
+					"Key": "Network",
+					"Value": "Private"
+				}]
+			}
+		},
+		"DestPrivateSubnet1BRoute": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet1BRouteTable"
+				},
+				"DestinationCidrBlock": "0.0.0.0/0",
+				"InstanceId": {
+					"Fn::If": [
+						"DestNATInstanceCondition", {
+							"Ref": "DestNatInstance1"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				},
+				"NatGatewayId": {
+					"Fn::If": [
+						"DestNATGatewayCondition", {
+							"Ref": "DestNATGateway1"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				}
+			}
+		},
+		"DestPrivateSubnet1BRouteTableAssociation": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "DestPrivateSubnet1B"
+				},
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet1BRouteTable"
+				}
+			}
+		},
+		"DestPrivateSubnet1BNetworkAcl": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::NetworkAcl",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "NACL Protected subnet 1"
+				}, {
+					"Key": "Network",
+					"Value": "NACL Protected"
+				}]
+			}
+		},
+		"DestPrivateSubnet1BNetworkAclEntryInbound": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::NetworkAclEntry",
+			"Properties": {
+				"CidrBlock": "0.0.0.0/0",
+				"Egress": "false",
+				"NetworkAclId": {
+					"Ref": "DestPrivateSubnet1BNetworkAcl"
+				},
+				"Protocol": "-1",
+				"RuleAction": "allow",
+				"RuleNumber": "100"
+			}
+		},
+		"DestPrivateSubnet1BNetworkAclEntryOutbound": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::NetworkAclEntry",
+			"Properties": {
+				"CidrBlock": "0.0.0.0/0",
+				"Egress": "true",
+				"NetworkAclId": {
+					"Ref": "DestPrivateSubnet1BNetworkAcl"
+				},
+				"Protocol": "-1",
+				"RuleAction": "allow",
+				"RuleNumber": "100"
+			}
+		},
+		"DestPrivateSubnet1BNetworkAclAssociation": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::SubnetNetworkAclAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "DestPrivateSubnet1B"
+				},
+				"NetworkAclId": {
+					"Ref": "DestPrivateSubnet1BNetworkAcl"
+				}
+			}
+		},
+		"DestPrivateSubnet2BRouteTable": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::RouteTable",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Dest-Private-Subnet-2B-Route-Table"
+				}, {
+					"Key": "Network",
+					"Value": "Private"
+				}]
+			}
+		},
+		"DestPrivateSubnet2BRoute": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet2BRouteTable"
+				},
+				"DestinationCidrBlock": "0.0.0.0/0",
+				"InstanceId": {
+					"Fn::If": [
+						"DestNATInstanceCondition", {
+							"Ref": "DestNatInstance2"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				},
+				"NatGatewayId": {
+					"Fn::If": [
+						"DestNATGatewayCondition", {
+							"Ref": "DestNATGateway2"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				}
+			}
+		},
+		"DestPrivateSubnet2BRouteTableAssociation": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "DestPrivateSubnet2B"
+				},
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet2BRouteTable"
+				}
+			}
+		},
+		"DestPrivateSubnet2BNetworkAcl": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::NetworkAcl",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "NACL Protected subnet 2"
+				}, {
+					"Key": "Network",
+					"Value": "NACL Protected"
+				}]
+			}
+		},
+		"DestPrivateSubnet2BNetworkAclEntryInbound": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::NetworkAclEntry",
+			"Properties": {
+				"CidrBlock": "0.0.0.0/0",
+				"Egress": "false",
+				"NetworkAclId": {
+					"Ref": "DestPrivateSubnet2BNetworkAcl"
+				},
+				"Protocol": "-1",
+				"RuleAction": "allow",
+				"RuleNumber": "100"
+			}
+		},
+		"DestPrivateSubnet2BNetworkAclEntryOutbound": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::NetworkAclEntry",
+			"Properties": {
+				"CidrBlock": "0.0.0.0/0",
+				"Egress": "true",
+				"NetworkAclId": {
+					"Ref": "DestPrivateSubnet2BNetworkAcl"
+				},
+				"Protocol": "-1",
+				"RuleAction": "allow",
+				"RuleNumber": "100"
+			}
+		},
+		"DestPrivateSubnet2BNetworkAclAssociation": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::SubnetNetworkAclAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "DestPrivateSubnet2B"
+				},
+				"NetworkAclId": {
+					"Ref": "DestPrivateSubnet2BNetworkAcl"
+				}
+			}
+		},
+		"DestPublicSubnetRouteTable": {
+			"Type": "AWS::EC2::RouteTable",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "Dest-Public-Subnets-Route-Table"
+				}, {
+					"Key": "Network",
+					"Value": "Public"
+				}]
+			}
+		},
+		"DestPublicSubnetRoute": {
+			"DependsOn": "DestVPCGatewayAttachment",
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "DestPublicSubnetRouteTable"
+				},
+				"DestinationCidrBlock": "0.0.0.0/0",
+				"GatewayId": {
+					"Ref": "DestInternetGateway"
+				}
+			}
+		},
+		"DestPublicSubnet1RouteTableAssociation": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "DestPublicSubnet1"
+				},
+				"RouteTableId": {
+					"Ref": "DestPublicSubnetRouteTable"
+				}
+			}
+		},
+		"DestPublicSubnet2RouteTableAssociation": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "DestPublicSubnet2"
+				},
+				"RouteTableId": {
+					"Ref": "DestPublicSubnetRouteTable"
+				}
+			}
+		},
+		"DestNAT1EIP": {
+			"DependsOn": "DestVPCGatewayAttachment",
+			"Type": "AWS::EC2::EIP",
+			"Properties": {
+				"Domain": "vpc",
+				"InstanceId": {
+					"Fn::If": [
+						"DestNATInstanceCondition", {
+							"Ref": "DestNatInstance1"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				}
+			}
+		},
+		"DestNAT2EIP": {
+			"DependsOn": "DestVPCGatewayAttachment",
+			"Type": "AWS::EC2::EIP",
+			"Properties": {
+				"Domain": "vpc",
+				"InstanceId": {
+					"Fn::If": [
+						"DestNATInstanceCondition", {
+							"Ref": "DestNatInstance2"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				}
+			}
+		},
+		"DestNATGateway1": {
+			"Condition": "DestNATGatewayCondition",
+			"DependsOn": "DestVPCGatewayAttachment",
+			"Type": "AWS::EC2::NatGateway",
+			"Properties": {
+				"AllocationId": {
+					"Fn::GetAtt": [
+						"DestNAT1EIP",
+						"AllocationId"
+					]
+				},
+				"SubnetId": {
+					"Ref": "DestPublicSubnet1"
+				}
+			}
+		},
+		"DestNATGateway2": {
+			"Condition": "DestNATGatewayCondition",
+			"DependsOn": "DestVPCGatewayAttachment",
+			"Type": "AWS::EC2::NatGateway",
+			"Properties": {
+				"AllocationId": {
+					"Fn::GetAtt": [
+						"DestNAT2EIP",
+						"AllocationId"
+					]
+				},
+				"SubnetId": {
+					"Ref": "DestPublicSubnet2"
+				}
+			}
+		},
+		"DestNatInstance1": {
+			"Condition": "DestNATInstanceCondition",
+			"DependsOn": "DestVPCGatewayAttachment",
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+				"ImageId": {
+					"Fn::FindInMap": [
+						"AWSAMIRegionMap", {
+							"Ref": "AWS::Region"
+						},
+						"AWSNAT"
+					]
+				},
+				"InstanceType": {
+					"Ref": "NATInstanceType"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "NAT1"
+				}],
+				"NetworkInterfaces": [{
+					"GroupSet": [{
+						"Ref": "DestNATInstanceSecurityGroup"
+					}],
+					"AssociatePublicIpAddress": "true",
+					"DeviceIndex": "0",
+					"DeleteOnTermination": "true",
+					"SubnetId": {
+						"Ref": "DestPublicSubnet1"
+					}
+				}],
+				"KeyName": {
+					"Fn::If": [
+						"DestNATInstanceCondition", {
+							"Ref": "KeyPairName"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				},
+				"SourceDestCheck": "false"
+			}
+		},
+		"DestNatInstance2": {
+			"Condition": "DestNATInstanceCondition",
+			"DependsOn": "DestVPCGatewayAttachment",
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+				"ImageId": {
+					"Fn::FindInMap": [
+						"AWSAMIRegionMap", {
+							"Ref": "AWS::Region"
+						},
+						"AWSNAT"
+					]
+				},
+				"InstanceType": {
+					"Ref": "NATInstanceType"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "NAT2"
+				}],
+				"NetworkInterfaces": [{
+					"GroupSet": [{
+						"Ref": "DestNATInstanceSecurityGroup"
+					}],
+					"AssociatePublicIpAddress": "true",
+					"DeviceIndex": "0",
+					"DeleteOnTermination": "true",
+					"SubnetId": {
+						"Ref": "DestPublicSubnet2"
+					}
+				}],
+				"KeyName": {
+					"Fn::If": [
+						"DestNATInstanceCondition", {
+							"Ref": "KeyPairName"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				},
+				"SourceDestCheck": "false"
+			}
+		},
+		"DestNATInstanceSecurityGroup": {
+			"Condition": "DestNATInstanceCondition",
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "Enables outbound internet access for the VPC via the NAT instances",
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"SecurityGroupIngress": [{
+					"IpProtocol": "-1",
+					"FromPort": "1",
+					"ToPort": "65535",
+					"CidrIp": {
+						"Ref": "DestVPCCIDR"
+					}
+				}]
+			}
+		},
+		"DestS3Endpoint": {
+			"Condition": "DestVPCEndpointCondition",
+			"Type": "AWS::EC2::VPCEndpoint",
+			"Properties": {
+				"PolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": [{
+						"Action": "*",
+						"Effect": "Allow",
+						"Resource": "*",
+						"Principal": "*"
+					}]
+				},
+				"RouteTableIds": [{
+					"Ref": "DestPrivateSubnet1ARouteTable"
+				}, {
+					"Ref": "DestPrivateSubnet2ARouteTable"
+				}, {
+					"Fn::If": [
+						"DestAdditionalPrivateSubnetsCondition", {
+							"Ref": "DestPrivateSubnet1BRouteTable"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				}, {
+					"Fn::If": [
+						"DestAdditionalPrivateSubnetsCondition", {
+							"Ref": "DestPrivateSubnet2BRouteTable"
+						}, {
+							"Ref": "AWS::NoValue"
+						}
+					]
+				}],
+				"ServiceName": {
+					"Fn::Join": [
+						"", [
+							"com.amazonaws.", {
+								"Ref": "AWS::Region"
+							},
+							".s3"
+						]
+					]
+				},
+				"VpcId": {
+					"Ref": "DestVPC"
+				}
+			}
+		},
+		"VPCPeeringConnection": {
+			"Type": "AWS::EC2::VPCPeeringConnection",
+			"Properties": {
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"PeerVpcId": {
+					"Ref": "SourceVPC"
+				},
+				"Tags": [{
+					"Key": "Name",
+					"Value": "reInventENT312VPCPeer"
+				}]
+			}
+		},
+		"SourcePublicVPCPeerRoute": {
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "SourcePublicSubnetRouteTable"
+				},
+				"DestinationCidrBlock": {
+					"Ref": "DestVPCCIDR"
+				},
+				"VpcPeeringConnectionId": {
+					"Ref": "VPCPeeringConnection"
+				}
+			}
+		},
+		"DestPublicVPCPeerRoute": {
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "DestPublicSubnetRouteTable"
+				},
+				"DestinationCidrBlock": {
+					"Ref": "SourceVPCCIDR"
+				},
+				"VpcPeeringConnectionId": {
+					"Ref": "VPCPeeringConnection"
+				}
+			}
+		},
+		"DestPrivate1AVPCPeerRoute": {
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet1ARouteTable"
+				},
+				"DestinationCidrBlock": {
+					"Ref": "SourceVPCCIDR"
+				},
+				"VpcPeeringConnectionId": {
+					"Ref": "VPCPeeringConnection"
+				}
+			}
+		},
+		"DestPrivate2AVPCPeerRoute": {
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet2ARouteTable"
+				},
+				"DestinationCidrBlock": {
+					"Ref": "SourceVPCCIDR"
+				},
+				"VpcPeeringConnectionId": {
+					"Ref": "VPCPeeringConnection"
+				}
+			}
+		},
+		"DestPrivate1BVPCPeerRoute": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet1BRouteTable"
+				},
+				"DestinationCidrBlock": {
+					"Ref": "SourceVPCCIDR"
+				},
+				"VpcPeeringConnectionId": {
+					"Ref": "VPCPeeringConnection"
+				}
+			}
+		},
+		"DestPrivate2BVPCPeerRoute": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "DestPrivateSubnet2BRouteTable"
+				},
+				"DestinationCidrBlock": {
+					"Ref": "SourceVPCCIDR"
+				},
+				"VpcPeeringConnectionId": {
+					"Ref": "VPCPeeringConnection"
+				}
+			}
+		},
+		"ENT312DemoSourceInstanceSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": {
+					"Fn::Join": [
+						"", [{
+								"Ref": "EnvironmentType"
+							},
+							"-", {
+								"Ref": "AWS::Region"
+							},
+							"-sourceinstance-securitygroup"
+						]
+					]
+				},
+				"VpcId": {
+					"Ref": "SourceVPC"
+				},
+				"SecurityGroupIngress": [{
+					"IpProtocol": "tcp",
+					"FromPort": "22",
+					"ToPort": "22",
+					"CidrIp": "0.0.0.0/0"
+				}, {
+					"IpProtocol": "tcp",
+					"FromPort": "3000",
+					"ToPort": "3000",
+					"CidrIp": "0.0.0.0/0"
+				}],
+				"Tags": [{
+					"Key": "Environment",
+					"Value": {
+						"Ref": "EnvironmentType"
+					}
+				}, {
+					"Key": "Name",
+					"Value": {
+						"Fn::Join": [
+							"", [{
+									"Ref": "EnvironmentType"
+								},
+								"-", {
+									"Ref": "AWS::Region"
+								},
+								"-sourceinstance-securitygroup"
+							]
+						]
+					}
+				}]
+			}
+		},
+		"ENT312DemoDestELBSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Enables access to the Gogs ELB",
+                "VpcId": {
+                    "Ref": "DestVPC"
+                },
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "80",
+                        "ToPort": "80",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ],
+				"Tags": [{
+					"Key": "Environment",
+					"Value": {
+						"Ref": "EnvironmentType"
+					}
+				}, {
+					"Key": "Name",
+					"Value": {
+						"Fn::Join": [
+							"", [{
+									"Ref": "EnvironmentType"
+								},
+								"-", {
+									"Ref": "AWS::Region"
+								},
+								"-destelb-securitygroup"
+							]
+						]
+					}
+				}]
+            }
+        },
+		"ENT312DemoDestInstanceSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": {
+					"Fn::Join": [
+						"", [{
+								"Ref": "EnvironmentType"
+							},
+							"-", {
+								"Ref": "AWS::Region"
+							},
+							"-destinstance-securitygroup"
+						]
+					]
+				},
+				"VpcId": {
+					"Ref": "DestVPC"
+				},
+				"SecurityGroupIngress": [{
+					"IpProtocol": "tcp",
+					"FromPort": "22",
+					"ToPort": "22",
+					"CidrIp": "0.0.0.0/0"
+				}, {
+					"IpProtocol": "tcp",
+					"FromPort": "3000",
+					"ToPort": "3000",
+                    "SourceSecurityGroupId": {
+                            "Fn::GetAtt": [
+                                "ENT312DemoDestELBSecurityGroup",
+                                "GroupId"
+                            ]
+                        }
+				}],
+				"Tags": [{
+					"Key": "Environment",
+					"Value": {
+						"Ref": "EnvironmentType"
+					}
+				}, {
+					"Key": "Name",
+					"Value": {
+						"Fn::Join": [
+							"", [{
+									"Ref": "EnvironmentType"
+								},
+								"-", {
+									"Ref": "AWS::Region"
+								},
+								"-destinstance-securitygroup"
+							]
+						]
+					}
+				}]
+			}
+		}
+	},
+	"Outputs": {
+		"SourcePublicSubnet1CIDR": {
+			"Description": "Source Public subnet 1 CIDR in Availability Zone 1",
+			"Value": {
+				"Ref": "SourcePublicSubnet1CIDR"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-SourcePublicSubnet1CIDR"
+				}
+			}
+		},
+		"SourcePublicSubnet1ID": {
+			"Description": "Source Public subnet 1 ID in Availability Zone 1",
+			"Value": {
+				"Ref": "SourcePublicSubnet1"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-SourcePublicSubnet1ID"
+				}
+			}
+		},
+		"SourcePublicSubnet1AZ": {
+			"Description": "Source Public subnet 1 Availability Zone ",
+			"Value": {
+				"Fn::GetAtt": ["SourcePublicSubnet1", "AvailabilityZone"]
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-SourcePublicSubnet1AZ"
+				}
+			}
+		},
+		"SourcePublicSubnet2CIDR": {
+			"Description": "Source Public subnet 2 CIDR in Availability Zone 2",
+			"Value": {
+				"Ref": "SourcePublicSubnet2CIDR"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-SourcePublicSubnet2CIDR"
+				}
+			}
+		},
+		"SourcePublicSubnet2ID": {
+			"Description": "SourcePublic subnet 2 ID in Availability Zone 2",
+			"Value": {
+				"Ref": "SourcePublicSubnet2"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-SourcePublicSubnet2ID"
+				}
+			}
+		},
+		"SourcePublicSubnet2AZ": {
+			"Description": "Source Public subnet 2 Availability Zone ",
+			"Value": {
+				"Fn::GetAtt": ["SourcePublicSubnet2", "AvailabilityZone"]
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-SourcePublicSubnet2AZ"
+				}
+			}
+		},
+		"SourceVPCCIDR": {
+			"Value": {
+				"Ref": "SourceVPCCIDR"
+			},
+			"Description": "Source VPC CIDR",
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-SourceVPCCIDR"
+				}
+			}
+		},
+		"SourceVPCID": {
+			"Value": {
+				"Ref": "SourceVPC"
+			},
+			"Description": "Source VPC ID",
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-SourceVPCID"
+				}
+			}
+		},
+		"DestPrivateSubnet1ACIDR": {
+			"Description": "Dest Private subnet 1A CIDR in Availability Zone 1",
+			"Value": {
+				"Ref": "DestPrivateSubnet1ACIDR"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPrivateSubnet1ACIDR"
+				}
+			}
+		},
+		"DestPublicSubnet1AZ": {
+			"Description": "Dest Public subnet 1 Availability Zone ",
+			"Value": {
+				"Fn::GetAtt": ["DestPublicSubnet1", "AvailabilityZone"]
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPublicSubnet1AZ"
+				}
+			}
+		},
+		"DestPublicSubnet2AZ": {
+			"Description": "Dest Public subnet 2 Availability Zone ",
+			"Value": {
+				"Fn::GetAtt": ["DestPublicSubnet2", "AvailabilityZone"]
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPublicSubnet2AZ"
+				}
+			}
+		},
+		"DestPrivateSubnet1AID": {
+			"Description": "Dest Private subnet 1A ID in Availability Zone 1",
+			"Value": {
+				"Ref": "DestPrivateSubnet1A"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPrivateSubnet1AID"
+				}
+			}
+		},
+		"DestPrivateSubnet1BCIDR": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Description": "Dest Private subnet 1B CIDR in Availability Zone 1",
+			"Value": {
+				"Ref": "DestPrivateSubnet1BCIDR"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPrivateSubnet1BCIDR"
+				}
+			}
+		},
+		"DestPrivateSubnet1BID": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Description": "Dest Private subnet 1B ID in Availability Zone 1",
+			"Value": {
+				"Ref": "DestPrivateSubnet1B"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPrivateSubnet1BID"
+				}
+			}
+		},
+		"DestPrivateSubnet2ACIDR": {
+			"Description": "Dest Private subnet 2A CIDR in Availability Zone 2",
+			"Value": {
+				"Ref": "DestPrivateSubnet2ACIDR"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPrivateSubnet2ACIDR"
+				}
+			}
+		},
+		"DestPrivateSubnet2AID": {
+			"Description": "Dest Private subnet 2A ID in Availability Zone 2",
+			"Value": {
+				"Ref": "DestPrivateSubnet2A"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPrivateSubnet2AID"
+				}
+			}
+		},
+		"DestPrivateSubnet2BCIDR": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Description": "Dest Private subnet 2B CIDR in Availability Zone 2",
+			"Value": {
+				"Ref": "DestPrivateSubnet2BCIDR"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPrivateSubnet2BCIDR"
+				}
+			}
+		},
+		"DestPrivateSubnet2BID": {
+			"Condition": "DestAdditionalPrivateSubnetsCondition",
+			"Description": "Dest Private subnet 2B ID in Availability Zone 2",
+			"Value": {
+				"Ref": "DestPrivateSubnet2B"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPrivateSubnet2BID"
+				}
+			}
+		},
+		"DestPublicSubnet1CIDR": {
+			"Description": "Dest Public subnet 1 CIDR in Availability Zone 1",
+			"Value": {
+				"Ref": "DestPublicSubnet1CIDR"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPublicSubnet1CIDR"
+				}
+			}
+		},
+		"DestPublicSubnet1ID": {
+			"Description": "Dest Public subnet 1 ID in Availability Zone 1",
+			"Value": {
+				"Ref": "DestPublicSubnet1"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPublicSubnet1ID"
+				}
+			}
+		},
+		"DestPublicSubnet2CIDR": {
+			"Description": "Dest Public subnet 2 CIDR in Availability Zone 2",
+			"Value": {
+				"Ref": "DestPublicSubnet2CIDR"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPublicSubnet2CIDR"
+				}
+			}
+		},
+		"DestPublicSubnet2ID": {
+			"Description": "Dest Public subnet 2 ID in Availability Zone 2",
+			"Value": {
+				"Ref": "DestPublicSubnet2"
+			},
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestPublicSubnet2ID"
+				}
+			}
+		},
+		"DestVPCCIDR": {
+			"Value": {
+				"Ref": "DestVPCCIDR"
+			},
+			"Description": "Dest VPC CIDR",
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestVPCCIDR"
+				}
+			}
+		},
+		"DestVPCID": {
+			"Value": {
+				"Ref": "DestVPC"
+			},
+			"Description": "VPC ID",
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-DestVPCID"
+				}
+			}
+		},
+		"VPCPeringConnectionID": {
+			"Value": {
+				"Ref": "VPCPeeringConnection"
+			},
+			"Description": "VPC Pering ConnectionID",
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-VPCPeringConnectionID"
+				}
+			}
+		},
+		"ENT312DemoSourceInstanceSecurityGroupID": {
+			"Value": {
+				"Ref": "ENT312DemoSourceInstanceSecurityGroup"
+			},
+			"Description": "Source Instance Security Group ID in Source VPC",
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-ENT312DemoSourceInstanceSecurityGroupID"
+				}
+			}
+		},
+		"ENT312DemoDestInstanceSecurityGroupID": {
+			"Value": {
+				"Ref": "ENT312DemoDestInstanceSecurityGroup"
+			},
+			"Description": "Dest Instance Security Group ID in Dest VPC",
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-ENT312DemoDestInstanceSecurityGroupID"
+				}
+			}
+		},
+		"ENT312DemoDestELBSecurityGroupID": {
+			"Value": {
+				"Ref": "ENT312DemoDestELBSecurityGroup"
+			},
+			"Description": "Dest ELB Security Group ID in Dest VPC",
+			"Export": {
+				"Name": {
+					"Fn::Sub": "${AWS::StackName}-ENT312DemoDestELBSecurityGroupID"
+				}
+			}
+		}
+	}
+}

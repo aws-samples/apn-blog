@@ -1,0 +1,15 @@
+[submodule "cloudendure_demo/playbooks/roles/geerlingguy.git"]
+	path = cloudendure_demo/playbooks/roles/geerlingguy.git
+	url = https://github.com/geerlingguy/ansible-role-git.git
+[submodule "cloudendure_demo/playbooks/roles/geerlingguy.mysql"]
+	path = cloudendure_demo/playbooks/roles/geerlingguy.mysql
+	url = https://github.com/geerlingguy/ansible-role-mysql.git
+[submodule "cloudendure_demo/playbooks/roles/mariadb"]
+	path = cloudendure_demo/playbooks/roles/mariadb
+	url = https://github.com/PCextreme/ansible-role-mariadb.git
+[submodule "cloudendure_demo/playbooks/roles/mysql"]
+	path = cloudendure_demo/playbooks/roles/mysql
+	url = https://github.com/bennojoy/mysql.git
+[submodule "cloudendure_demo/playbooks/roles/gogs"]
+	path = cloudendure_demo/playbooks/roles/gogs
+	url = https://github.com/mandusm/ansible-role-gogs.git

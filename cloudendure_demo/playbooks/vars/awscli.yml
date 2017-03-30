@@ -1,0 +1,5 @@
+---
+aws_output_format: 'json'
+aws_region: 'us-west-2'
+aws_access_key_id: (AccessKeyId)
+aws_secret_access_key: (SecretAccessKeyId)
