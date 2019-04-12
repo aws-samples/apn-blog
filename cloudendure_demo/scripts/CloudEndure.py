@@ -5,7 +5,7 @@ import json
 import os
 import re
 import sys
-import urllib2
+import requests
 import time
 import yaml
 import boto3
@@ -13,6 +13,7 @@ from botocore.exceptions import ClientError
 
 vpc_stack_name = ""
 session_cookie = ""
+cookies = ""
 
 
 def launch_stack(ami):
@@ -166,17 +167,17 @@ def invoke_cloudendure(method, operation, params, headers, version):
 
     try:
         headers.update({'Content-Type': 'application/json'})
-        url = 'https://console.cloudendure.com' + version + operation
+        url = 'https://console.cloudendure.com/api' + version + operation
         print(url)
         data = json.dumps(params).encode('utf8')
-        print("Data:" + data)
+        session = {'session': session_cookie}
         if method == "GET":
-            req = urllib2.Request(url, headers=headers)
+            response = requests.get(url, headers=headers, cookies=session)
         else:
-            req = urllib2.Request(url, data, headers=headers)
+            response = requests.post(url, data, headers=headers)
 
-        response = urllib2.urlopen(req)
-        print("CloudEndure Response Status Code: %s" % response.getcode())
+        print(response.content)
+        print("CloudEndure Response Status Code: %s" % response)
         return response
 
     except ClientError as err:
@@ -191,8 +192,9 @@ def check_machine_ready(ce_machine_id, project_id):
         print("Checking To See If %s Is Ready To Migrate" % CFG['hosttomigrate'])
         get_machines_response = invoke_cloudendure(
             'GET', 'projects/' + project_id + '/machines/' + ce_machine_id, {},
-            {'Cookie': session_cookie}, CFG['version'])
-        parsed_json = json.loads(get_machines_response.read().decode('utf-8'))
+            {'session': session_cookie,'X-XSRF-TOKEN':cookies}, CFG['version'])
+        print(get_machines_response.content)
+        parsed_json = json.loads(get_machines_response.content)
         if 'lastConsistencyDateTime' in parsed_json['replicationInfo']:
             print("%s Is Ready To Migrate" % CFG['hosttomigrate'])
             print(parsed_json['replicationInfo']['lastConsistencyDateTime'])
@@ -217,8 +219,8 @@ def start_conversion():
     # Returns all projects the current user can use.
     print("Get CloudEndure Projects")
     get_projects_response = invoke_cloudendure(
-        'GET', 'projects', {}, {'Cookie': session_cookie}, CFG['version'])
-    parsed_json = json.loads(get_projects_response.read().decode('utf-8'))
+        'GET', 'projects', {}, {'X-XSRF-TOKEN':cookies}, CFG['version'])
+    parsed_json = json.loads(get_projects_response.content)
     projects = [project['id'] for project in parsed_json['items']]
     print("projectId: %s" % projects)
 
@@ -229,8 +231,8 @@ def start_conversion():
     for project_id in projects:
         get_all_machines_response = invoke_cloudendure(
             'GET', 'projects/' + project_id + '/machines', {},
-            {'Cookie': session_cookie}, CFG['version'])
-        parsed_json = json.loads(get_all_machines_response.read().decode('utf-8'))
+            {'session': session_cookie,'X-XSRF-TOKEN': cookies}, CFG['version'])
+        parsed_json = json.loads(get_all_machines_response.content)
         for i in parsed_json['items']:
             if i['sourceProperties']['name'] == CFG['hosttomigrate']:
                 print("We Hava A Match In CloudEndure for %s" % CFG['hosttomigrate'])
@@ -256,7 +258,7 @@ def start_conversion():
                 invoke_cloudendure(
                     'PUT', 'projects/' + project_id + '/performTest',
                     {'items': [{'machineId': machine_id}]},
-                    {'Cookie': session_cookie}, CFG['version'])
+                    {'session': session_cookie,'X-XSRF-TOKEN':cookies}, CFG['version'])
 
                 # Start polling the queue for the passed AMI message
                 receive_messages()
@@ -265,16 +267,16 @@ def start_conversion():
 def login():
     """Log into CloudEndure"""
     global session_cookie
+    global cookies
     print("Logging into CloudEndure")
     login_response = invoke_cloudendure(
-        'POST', 'celogin',
+        'POST', 'login',
         {'username': CFG['username'], 'password': CFG['password']}, {}, CFG['version'])
 
-    # Extract the session cookie from the response
-    session_cookie = login_response.info().getheader('Set-Cookie')
-    cookies = re.split('; |/ ', session_cookie)
-    session_cookie = [cookie for cookie in cookies
-                      if cookie.startswith('session')][0].strip()
+    # Extract the session cookie and token from the response
+    session_cookie = login_response.cookies['session']
+    cookies = login_response.cookies['XSRF-TOKEN']
+    cookies = cookies.replace('"', '')
 
 # Starting the script
 print("*********** ENT312 Powered by " +
@@ -286,7 +288,7 @@ with open(os.path.join(sys.path[0], "config.yml"), 'r') as ymlfile:
 time.sleep(5)
 login()
 
-# Describing CloudFromation Stacks
+# Describing CloudFormation Stacks
 describe_stack()
 
 # Start Conversion
