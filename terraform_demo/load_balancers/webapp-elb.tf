@@ -10,7 +10,7 @@
 # License for the specific language governing permissions and limitations under the License.
 resource "aws_elb" "webapp_elb" {
   name = "demo-webapp-elb"
-  subnets = ["${var.public_subnet_id}"]
+  subnets = [var.public_subnet_id]
   listener {
     instance_port = 80
     instance_protocol = "http"
@@ -24,11 +24,11 @@ resource "aws_elb" "webapp_elb" {
     target = "HTTP:80/"
     interval = 10
   }
-  security_groups = ["${var.webapp_http_inbound_sg_id}"]
-  tags {
+  security_groups = [var.webapp_http_inbound_sg_id]
+  tags = {
       Name = "terraform_elb"
   }
 }
 output "webapp_elb_name" {
-  value = "${aws_elb.webapp_elb.name}"
+  value = aws_elb.webapp_elb.name
 }
