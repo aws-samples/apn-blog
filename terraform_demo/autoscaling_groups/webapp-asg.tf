@@ -10,14 +10,14 @@
 # License for the specific language governing permissions and limitations under the License.
 resource "aws_autoscaling_group" "webapp_asg" {
   lifecycle { create_before_destroy = true }
-  vpc_zone_identifier = ["${var.public_subnet_id}"]
+  vpc_zone_identifier = [var.public_subnet_id]
   name = "demo_webapp_asg-${var.webapp_lc_name}"
-  max_size = "${var.asg_max}"
-  min_size = "${var.asg_min}"
-  wait_for_elb_capacity = false
+  max_size = var.asg_max
+  min_size = var.asg_min
+  wait_for_elb_capacity = 0
   force_delete = true
-  launch_configuration = "${var.webapp_lc_id}"
-  load_balancers = ["${var.webapp_elb_name}"]
+  launch_configuration = var.webapp_lc_id
+  load_balancers = [var.webapp_elb_name]
   tag {
     key = "Name"
     value = "terraform_asg"
@@ -33,7 +33,7 @@ resource "aws_autoscaling_policy" "scale_up" {
   scaling_adjustment = 2
   adjustment_type = "ChangeInCapacity"
   cooldown = 300
-  autoscaling_group_name = "${aws_autoscaling_group.webapp_asg.name}"
+  autoscaling_group_name = aws_autoscaling_group.webapp_asg.name
 }
 resource "aws_cloudwatch_metric_alarm" "scale_up_alarm" {
   alarm_name = "terraform-demo-high-asg-cpu"
@@ -45,8 +45,8 @@ resource "aws_cloudwatch_metric_alarm" "scale_up_alarm" {
   statistic = "Average"
   threshold = "80"
   insufficient_data_actions = []
-  dimensions {
-      AutoScalingGroupName = "${aws_autoscaling_group.webapp_asg.name}"
+  dimensions = {
+      AutoScalingGroupName = aws_autoscaling_group.webapp_asg.name
   }
   alarm_description = "EC2 CPU Utilization"
   alarm_actions = ["${aws_autoscaling_policy.scale_up.arn}"]
@@ -60,7 +60,7 @@ resource "aws_autoscaling_policy" "scale_down" {
   scaling_adjustment = -1
   adjustment_type = "ChangeInCapacity"
   cooldown = 600
-  autoscaling_group_name = "${aws_autoscaling_group.webapp_asg.name}"
+  autoscaling_group_name = aws_autoscaling_group.webapp_asg.name
 }
 
 resource "aws_cloudwatch_metric_alarm" "scale_down_alarm" {
@@ -73,12 +73,12 @@ resource "aws_cloudwatch_metric_alarm" "scale_down_alarm" {
   statistic = "Average"
   threshold = "30"
   insufficient_data_actions = []
-  dimensions {
-      AutoScalingGroupName = "${aws_autoscaling_group.webapp_asg.name}"
+  dimensions = {
+      AutoScalingGroupName = aws_autoscaling_group.webapp_asg.name
   }
   alarm_description = "EC2 CPU Utilization"
   alarm_actions = ["${aws_autoscaling_policy.scale_down.arn}"]
 }
 output "asg_id" {
-  value = "${aws_autoscaling_group.webapp_asg.id}"
+  value = aws_autoscaling_group.webapp_asg.id
 }

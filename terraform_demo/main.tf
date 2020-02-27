@@ -9,19 +9,19 @@
 # BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under the License.
 provider "aws" {
-  region = "${var.region}"
+  region = var.region
 }
 module "site" {
   source = "./site"
-  key_name = "${var.key_name}"
-  ip_range = "${var.ip_range}"
+  key_name = var.key_name
+  ip_range = var.ip_range
 }
 module "launch_configurations" {
   source = "./launch_configurations"
   webapp_http_inbound_sg_id = "${module.site.webapp_http_inbound_sg_id}"
   webapp_ssh_inbound_sg_id = "${module.site.webapp_ssh_inbound_sg_id}"
   webapp_outbound_sg_id = "${module.site.webapp_outbound_sg_id}"
-  key_name = "${var.key_name}"
+  key_name = var.key_name
 }
 module "load_balancers" {
   source = "./load_balancers"
@@ -42,5 +42,5 @@ module "instances" {
   private_subnet_id = "${module.site.private_subnet_id}"
   ssh_from_bastion_sg_id = "${module.site.ssh_from_bastion_sg_id}"
   web_access_from_nat_sg_id = "${module.site.web_access_from_nat_sg_id}"
-  key_name = "${var.key_name}"
+  key_name = var.key_name
 }
