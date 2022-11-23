@@ -25,7 +25,7 @@ resource "aws_elb" "webapp_elb" {
     interval = 10
   }
   security_groups = ["${var.webapp_http_inbound_sg_id}"]
-  tags {
+  tags = {
       Name = "terraform_elb"
   }
 }
