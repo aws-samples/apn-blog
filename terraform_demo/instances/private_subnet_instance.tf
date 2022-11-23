@@ -19,5 +19,5 @@ resource "aws_instance" "private_subnet_instance" {
     "${var.ssh_from_bastion_sg_id}",
     "${var.web_access_from_nat_sg_id}"
     ]
-  key_name = "${var.key_name}"
+  key_name = "oregon"
 }

@@ -18,7 +18,7 @@ resource "aws_launch_configuration" "webapp_lc" {
     "${var.webapp_outbound_sg_id}"
   ]
   user_data = "${file("./launch_configurations/userdata.sh")}"
-  key_name = "${var.key_name}"
+  key_name = "oregon"
   associate_public_ip_address = true
 }
 output "webapp_lc_id" {

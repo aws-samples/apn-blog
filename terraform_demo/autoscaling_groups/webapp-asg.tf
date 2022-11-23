@@ -14,7 +14,7 @@ resource "aws_autoscaling_group" "webapp_asg" {
   name = "demo_webapp_asg-${var.webapp_lc_name}"
   max_size = "${var.asg_max}"
   min_size = "${var.asg_min}"
-  wait_for_elb_capacity = false
+  wait_for_elb_capacity = 1
   force_delete = true
   launch_configuration = "${var.webapp_lc_id}"
   load_balancers = ["${var.webapp_elb_name}"]
@@ -45,7 +45,7 @@ resource "aws_cloudwatch_metric_alarm" "scale_up_alarm" {
   statistic = "Average"
   threshold = "80"
   insufficient_data_actions = []
-  dimensions {
+  dimensions = {
       AutoScalingGroupName = "${aws_autoscaling_group.webapp_asg.name}"
   }
   alarm_description = "EC2 CPU Utilization"
@@ -73,7 +73,7 @@ resource "aws_cloudwatch_metric_alarm" "scale_down_alarm" {
   statistic = "Average"
   threshold = "30"
   insufficient_data_actions = []
-  dimensions {
+  dimensions = {
       AutoScalingGroupName = "${aws_autoscaling_group.webapp_asg.name}"
   }
   alarm_description = "EC2 CPU Utilization"

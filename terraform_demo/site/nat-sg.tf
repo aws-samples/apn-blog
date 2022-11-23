@@ -36,7 +36,7 @@ resource "aws_security_group" "nat" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   vpc_id = "${aws_vpc.default.id}"
-  tags {
+  tags = {
       Name = "terraform"
   }
 }
@@ -72,7 +72,7 @@ resource "aws_security_group" "web_access_from_nat_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   vpc_id = "${aws_vpc.default.id}"
-  tags {
+  tags = {
       Name = "terraform"
   }
 }

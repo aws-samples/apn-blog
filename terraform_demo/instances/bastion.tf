@@ -17,7 +17,7 @@ resource "aws_instance" "bastion" {
   subnet_id = "${var.public_subnet_id}"
   associate_public_ip_address = true
   vpc_security_group_ids = ["${var.bastion_ssh_sg_id}"]
-  key_name = "${var.key_name}"
+  key_name = "oregon"
 }
 
 resource "aws_eip" "bastion" {
